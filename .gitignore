@@ -1,0 +1,4 @@
+# purchased artwork pack: keep the originals out of version control (licence)
+PNG/
+.DS_Store
+node_modules/

@@ -1,0 +1,330 @@
+/* Iceland Simulator: visual system.
+ *
+ * The palette is undyed wool and basalt, because in this world only the wealthy wear colour.
+ * The one dyed colour, madder red, is reserved for Honor. If something is red, it is Honor.
+ */
+:root {
+  --fog: #dde1de;        /* undyed wool, pale */
+  --fog-deep: #cdd3cf;   /* rules and wells */
+  --basalt: #24282a;     /* text */
+  --stone: #4f5a56;      /* secondary text */
+  --lichen: #8d9786;     /* thread, quiet marks */
+  --madder: #982821;     /* Honor, and only Honor */
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Cambria, Georgia, serif;
+  --sans: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --measure: 38rem;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fog: #161716;
+    --fog-deep: #262826;
+    --basalt: #dadcd7;
+    --stone: #a3aaa2;
+    --lichen: #6c7667;
+    --madder: #d2594e;
+  }
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { background: var(--fog); color: var(--basalt); }
+body {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 1.125rem;
+  line-height: 1.62;
+  background: var(--fog);
+  -webkit-font-smoothing: antialiased;
+}
+button, input { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--basalt); outline-offset: 3px; }
+
+/* ---------- page frame ---------- */
+.page { max-width: 74rem; margin: 0 auto; padding: 0 1rem 5rem; }
+.bar {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.75rem 1.5rem;
+  padding: 1rem 0; border-bottom: 1px solid var(--fog-deep);
+  font-family: var(--sans); font-size: 0.9rem;
+}
+.bar-title { font-weight: 600; letter-spacing: 0.01em; }
+.bar-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.75rem; }
+.seed-field { display: flex; align-items: center; gap: 0.5rem; color: var(--stone); }
+.seed-field input {
+  width: 9.5rem; padding: 0.4rem 0.6rem; border: 1px solid var(--lichen); border-radius: 3px;
+  background: transparent;
+}
+
+.btn {
+  font-family: var(--sans); font-size: 0.9rem; cursor: pointer;
+  padding: 0.45rem 0.9rem; border: 1px solid var(--basalt); border-radius: 3px;
+  background: transparent; color: var(--basalt);
+}
+.btn:hover { background: var(--fog-deep); }
+.btn-primary { background: var(--basalt); color: var(--fog); padding: 0.7rem 1.4rem; font-size: 1rem; }
+.btn-primary:hover { background: var(--stone); }
+
+/* ---------- layout: story left, ledger right ---------- */
+.layout { display: grid; grid-template-columns: 1fr; gap: 2.5rem 4rem; }
+@media (min-width: 62rem) {
+  .layout { grid-template-columns: minmax(0, 1fr) 24rem; align-items: start; }
+  .ledger { position: sticky; top: 1.25rem; max-height: calc(100vh - 2.5rem); overflow-y: auto; padding-right: 0.5rem; }
+}
+
+/* ---------- hero: the lineage, recited ---------- */
+.hero { padding: 3.5rem 0 2.5rem; }
+.lineage { list-style: none; margin: 0; padding: 0; }
+.lineage li {
+  margin-left: calc(var(--i) * 1.2rem);
+  font-size: calc(var(--top, 4.25rem) * (1 - var(--i) * 0.2));
+  line-height: 1.12; letter-spacing: -0.012em; font-weight: 500;
+  opacity: calc(1 - var(--i) * 0.2);
+  animation: recite 0.9s ease-out both;
+  animation-delay: calc(var(--i) * 0.45s);
+}
+.lineage li:first-child { font-weight: 600; --top: clamp(2.6rem, 8vw, 4.75rem); }
+.lineage li:not(:first-child) { --top: clamp(2.6rem, 8vw, 4.75rem); }
+.lineage .son-of { font-style: italic; font-weight: 400; color: var(--stone); font-size: 0.5em; margin-right: 0.35em; }
+.lineage .byname { font-weight: 400; font-style: italic; color: var(--stone); font-size: 0.6em; margin-left: 0.3em; }
+@keyframes recite { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .lineage li { animation: none; } }
+
+.hero-place { margin: 2rem 0 0.25rem; font-size: 1.3rem; max-width: var(--measure); }
+.hero-when { margin: 0; color: var(--stone); max-width: var(--measure); }
+.hero-actions { margin-top: 1.75rem; display: flex; flex-wrap: wrap; gap: 0.75rem; }
+
+/* ---------- thread: the family history ---------- */
+.thread-intro { max-width: var(--measure); color: var(--stone); margin: 0 0 1.5rem; }
+.thread { list-style: none; margin: 0; padding: 0; }
+.station { position: relative; padding: 0 0 2.75rem 2.75rem; }
+.station::before { /* the thread */
+  content: ""; position: absolute; left: 0.8rem; top: 0.5rem; bottom: -0.5rem; width: 2px; background: var(--lichen);
+}
+.station:last-child::before { bottom: auto; height: 1.5rem; }
+.station::after { /* the knot: its size is that man's Honor */
+  content: ""; position: absolute; top: 0.55rem;
+  width: calc(10px + var(--honor) * 0.2px); height: calc(10px + var(--honor) * 0.2px);
+  left: calc(0.8rem + 1px - (10px + var(--honor) * 0.2px) / 2);
+  border-radius: 50%; background: var(--madder);
+}
+.station h3 { margin: 0 0 0.15rem; font-size: 1.45rem; line-height: 1.25; font-weight: 600; }
+.station .years { margin: 0 0 0.9rem; font-family: var(--sans); font-size: 0.9rem; color: var(--stone); }
+.station p { margin: 0 0 0.7rem; max-width: var(--measure); }
+.station details summary {
+  cursor: pointer; font-family: var(--sans); font-size: 0.9rem; color: var(--stone);
+  width: fit-content; padding: 0.15rem 0; list-style: none; text-decoration: underline; text-underline-offset: 3px;
+}
+.station details summary::-webkit-details-marker { display: none; }
+.station details[open] summary { margin-bottom: 0.7rem; }
+.station .ended { font-style: italic; }
+
+/* ---------- ledger ---------- */
+.ledger section { padding: 0 0 1.75rem; margin: 0 0 1.75rem; border-bottom: 1px solid var(--fog-deep); }
+.ledger section:last-child { border-bottom: 0; }
+.ledger h2 { margin: 0 0 0.6rem; font-size: 1.15rem; font-weight: 600; }
+.ledger p, .ledger li { font-size: 1rem; line-height: 1.5; }
+.ledger ul { margin: 0; padding: 0; list-style: none; }
+.ledger li { margin: 0 0 0.55rem; }
+.ledger .num { font-family: var(--sans); font-variant-numeric: tabular-nums; }
+
+.honor-figure { display: flex; align-items: baseline; gap: 0.75rem; margin: 0 0 0.25rem; }
+.honor-figure .n { font-family: var(--serif); font-size: 4.25rem; line-height: 1; font-weight: 600; color: var(--madder); font-variant-numeric: lining-nums; }
+.honor-figure .w { font-size: 1.2rem; color: var(--stone); font-style: italic; }
+.honor-bar { height: 4px; background: var(--fog-deep); margin: 0.6rem 0 0; border-radius: 2px; }
+.honor-bar span { display: block; height: 100%; background: var(--madder); border-radius: 2px; }
+.honor-note { color: var(--stone); margin: 0.6rem 0 0; }
+
+.stock { display: grid; grid-template-columns: auto 1fr; gap: 0.2rem 1rem; margin: 0; font-size: 1rem; }
+.stock dt { color: var(--stone); font-family: var(--sans); font-size: 0.9rem; padding-top: 0.1rem; }
+.stock dd { margin: 0; font-variant-numeric: tabular-nums; }
+
+.person { margin: 0 0 1.1rem; }
+.person .who { font-weight: 600; }
+.person .role { color: var(--stone); font-weight: 400; font-style: italic; }
+.attrs { margin: 0.15rem 0 0; font-family: var(--sans); font-size: 0.85rem; color: var(--stone); font-variant-numeric: tabular-nums; }
+.attrs b { font-weight: 600; color: var(--basalt); }
+.traits { margin: 0.2rem 0 0; font-size: 0.95rem; }
+.unknown { color: var(--stone); font-style: italic; }
+.mini-list { margin-top: 0.4rem; }
+.mini-list li { margin: 0 0 0.3rem; }
+
+.hook { padding-left: 0.9rem; border-left: 2px solid var(--lichen); }
+.empty { color: var(--stone); font-style: italic; }
+
+/* ---------- play: planning a season ---------- */
+.bar-when { color: var(--stone); }
+.has-dock { padding-bottom: 6.5rem; }
+.main { min-width: 0; }
+.season-head { padding: 2.5rem 0 1rem; }
+.season-head h1 { font-size: clamp(2.1rem, 5.5vw, 3.25rem); line-height: 1.08; margin: 0 0 0.6rem; font-weight: 600; letter-spacing: -0.01em; }
+.omen { font-size: 1.25rem; max-width: var(--measure); margin: 0 0 0.4rem; }
+.beats { color: var(--stone); max-width: var(--measure); margin: 0 0 1.1rem; }
+.plan-tools { display: flex; flex-wrap: wrap; gap: 0.6rem; }
+
+.plan-sec { padding: 1.6rem 0 0.4rem; border-top: 1px solid var(--fog-deep); margin-top: 1.4rem; }
+.plan-sec h2 { margin: 0 0 0.5rem; font-size: 1.35rem; font-weight: 600; }
+.plan-sec h3 { margin: 1.3rem 0 0.4rem; font-size: 1.05rem; font-weight: 600; font-style: italic; }
+.sec-note { color: var(--stone); max-width: var(--measure); margin: 0 0 0.6rem; font-size: 1rem; }
+
+.row, .stock-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.5rem 1.25rem; align-items: center; padding: 0.7rem 0; border-bottom: 1px solid var(--fog-deep); }
+.row-label { font-weight: 600; }
+.row-hint { font-family: var(--sans); font-size: 0.85rem; color: var(--stone); line-height: 1.4; margin-top: 0.1rem; max-width: 30rem; }
+.row-ctl { display: flex; align-items: center; gap: 1rem; justify-content: flex-end; }
+.row-yield { font-family: var(--sans); font-size: 0.85rem; color: var(--stone); min-width: 6.5rem; text-align: right; font-variant-numeric: tabular-nums; }
+.stock-ctls { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; justify-content: flex-end; }
+.mini { display: flex; flex-direction: column; align-items: center; gap: 0.15rem; font-family: var(--sans); font-size: 0.78rem; color: var(--stone); }
+
+.stepper { display: inline-flex; align-items: center; }
+.step-btn {
+  width: 2.5rem; height: 2.5rem; border: 1px solid var(--basalt); background: transparent; color: var(--basalt);
+  font-family: var(--sans); font-size: 1.15rem; line-height: 1; cursor: pointer;
+}
+.step-btn:first-child { border-radius: 3px 0 0 3px; }
+.step-btn:last-child { border-radius: 0 3px 3px 0; }
+.step-btn:hover:not(:disabled) { background: var(--fog-deep); }
+.step-btn:disabled { opacity: 0.3; cursor: default; }
+.step-val { min-width: 3.2rem; padding: 0 0.4rem; text-align: center; font-family: var(--sans); font-size: 0.95rem; font-variant-numeric: tabular-nums; border-top: 1px solid var(--basalt); border-bottom: 1px solid var(--basalt); height: 2.5rem; line-height: 2.4rem; white-space: nowrap; }
+
+.choices { display: grid; gap: 0.5rem; max-width: 34rem; }
+.choice, .check { display: flex; gap: 0.7rem; align-items: flex-start; padding: 0.65rem 0.8rem; border: 1px solid var(--fog-deep); border-radius: 3px; cursor: pointer; font-size: 1rem; line-height: 1.45; }
+.choice input, .check input { margin-top: 0.35rem; accent-color: var(--basalt); }
+.choice:has(input:checked) { border-color: var(--basalt); background: var(--fog-deep); }
+.choice-text span { color: var(--stone); font-family: var(--sans); font-size: 0.88rem; }
+.check { max-width: 34rem; margin-top: 0.9rem; }
+
+/* ---------- outlook (top of the ledger) ---------- */
+.outlook h2 { font-size: 1.15rem; }
+.out-label { margin: 0.7rem 0 0.3rem; display: flex; justify-content: space-between; gap: 1rem; font-family: var(--sans); font-size: 0.88rem; color: var(--stone); }
+.out-label b { color: var(--basalt); font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; }
+.out-verdict { margin: 0.25rem 0 0.5rem; font-size: 1rem; }
+.out-notes { margin: 0.5rem 0 0; }
+.out-notes li { font-family: var(--sans); font-size: 0.85rem; color: var(--stone); padding-left: 0.8rem; border-left: 2px solid var(--lichen); }
+.out-foot { font-family: var(--sans); font-size: 0.78rem; color: var(--stone); margin: 0.8rem 0 0; }
+.gauge-track { position: relative; height: 0.7rem; background: var(--fog-deep); border-radius: 2px; margin: 0.5rem 0 0.35rem; }
+.gauge-fill { height: 100%; background: var(--basalt); border-radius: 2px; }
+.gauge-tick { position: absolute; top: -0.35rem; width: 2px; height: 1.4rem; background: var(--stone); margin-left: -1px; }
+.gauge-legend { font-family: var(--sans); font-size: 0.78rem; color: var(--stone); font-variant-numeric: tabular-nums; }
+
+/* ---------- the dock: always-visible summary and the main action ---------- */
+.dock { position: fixed; left: 0; right: 0; bottom: 0; z-index: 5; background: var(--fog); border-top: 1px solid var(--lichen); }
+.dock-inner { max-width: 74rem; margin: 0 auto; padding: 0.65rem 1rem; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.6rem 1.5rem; }
+.dock-chips { display: flex; flex-wrap: wrap; gap: 0.3rem 1.25rem; font-family: var(--sans); font-size: 0.88rem; color: var(--stone); }
+.dock-chips b { color: var(--basalt); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* ---------- play: the season in review ---------- */
+.report { max-width: 40rem; padding: 2.5rem 0 5rem; }
+.report h1 { font-size: clamp(2rem, 5vw, 3rem); line-height: 1.1; margin: 0 0 1.25rem; font-weight: 600; }
+.lede { font-size: 1.25rem; margin: 0 0 1.5rem; }
+.rep-sec { padding: 1.1rem 0 0.3rem; border-top: 1px solid var(--fog-deep); }
+.rep-sec h2 { margin: 0 0 0.6rem; font-size: 1.2rem; font-weight: 600; }
+.rep-sec p { margin: 0 0 0.7rem; }
+.rep-succ { border-top: 2px solid var(--basalt); }
+.honor-parts { list-style: none; margin: 0 0 0.7rem; padding: 0; }
+.honor-parts li { margin: 0 0 0.25rem; }
+.hp-d { font-family: var(--sans); font-variant-numeric: tabular-nums; color: var(--madder); font-weight: 600; display: inline-block; min-width: 2.6rem; }
+.honor-now { color: var(--madder); }
+.books { border-collapse: collapse; font-family: var(--sans); font-size: 0.92rem; width: 100%; max-width: 26rem; font-variant-numeric: tabular-nums; }
+.books th, .books td { padding: 0.3rem 0.5rem; text-align: right; border-bottom: 1px solid var(--fog-deep); font-weight: 400; }
+.books th:first-child { text-align: left; color: var(--stone); }
+.books thead th { color: var(--stone); font-size: 0.8rem; }
+.people .who { font-weight: 600; }
+.people .role { color: var(--stone); font-style: italic; }
+.people li { margin: 0 0 0.3rem; }
+
+@media (max-width: 40rem) {
+  .row, .stock-row { grid-template-columns: 1fr; }
+  .row-ctl, .stock-ctls { justify-content: space-between; }
+  .row-yield { text-align: right; }
+  .dock-inner { padding: 0.55rem 0.9rem; }
+  .dock .btn-primary { padding: 0.6rem 1rem; }
+}
+
+/* ---------- play: a matter in the house ---------- */
+.incident { max-width: 38rem; padding: 2rem 0 4rem; }
+.incident h1 { font-size: clamp(1.8rem, 4.5vw, 2.6rem); line-height: 1.12; margin: 0 0 1rem; font-weight: 600; }
+.inc-count { font-family: var(--sans); font-size: 0.85rem; color: var(--stone); margin: 0 0 0.5rem; }
+.wife-card { border-left: 3px solid var(--lichen); padding: 0.1rem 0 0.1rem 1rem; margin: 1.25rem 0 1.5rem; }
+.wife-card .who { font-weight: 600; }
+.wife-card .role { color: var(--stone); font-style: italic; }
+.wc-mood { margin: 0.25rem 0; }
+.wc-traits { list-style: none; margin: 0.3rem 0; padding: 0; font-size: 0.95rem; color: var(--stone); }
+.wc-traits li { margin: 0 0 0.2rem; }
+.wc-traits b { color: var(--basalt); font-weight: 600; }
+.wc-hidden { margin: 0.3rem 0 0; font-style: italic; color: var(--stone); font-size: 0.95rem; }
+.opts { display: grid; gap: 0.6rem; }
+.opt { display: block; text-align: left; width: 100%; background: transparent; color: var(--basalt); border: 1px solid var(--lichen); padding: 0.8rem 1rem; font: inherit; cursor: pointer; }
+.opt:hover:not(:disabled) { background: var(--fog-deep); border-color: var(--basalt); }
+.opt:focus-visible { outline: 2px solid var(--basalt); outline-offset: 2px; }
+.opt:disabled { cursor: not-allowed; opacity: 0.55; }
+.opt-label { display: block; font-weight: 600; }
+.opt-desc { display: block; font-family: var(--sans); font-size: 0.88rem; color: var(--stone); margin-top: 0.2rem; }
+
+/* ---------- ornament: your bought Viking-art pack, tinted as one-colour masks ----------
+ * The files in art/ are alpha masks, so every motif takes its colour from the theme
+ * (lichen for quiet marks) and follows dark mode automatically. All of it is decoration:
+ * pure CSS pseudo-elements, nothing in the DOM, nothing read aloud.
+ */
+.bar { border-bottom: 0; position: relative; padding-bottom: 2.25rem; }
+.bar::after { /* Borre braid, one period tiled */
+  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 24px;
+  background: var(--lichen); opacity: 0.7;
+  -webkit-mask: var(--art-braid) repeat-x left center / auto 24px;
+          mask: var(--art-braid) repeat-x left center / auto 24px;
+}
+
+.hero { position: relative; }
+.hero::before { /* the ring beast watches over the title */
+  content: ""; position: absolute; top: 1.5rem; right: 0; width: 11rem; height: 12.5rem;
+  background: var(--lichen); opacity: 0.35; pointer-events: none;
+  -webkit-mask: var(--art-beast-ring) no-repeat center / contain;
+          mask: var(--art-beast-ring) no-repeat center / contain;
+}
+@media (max-width: 80rem) { .hero::before { display: none; } }
+
+/* a knot above each page heading, a different one for each kind of page */
+.season-head h1::before, .report h1::before, .incident h1::before {
+  content: ""; display: block; width: 2.6rem; height: 2.6rem; margin-bottom: 0.9rem;
+  background: var(--lichen);
+  -webkit-mask: var(--knot) no-repeat left center / contain;
+          mask: var(--knot) no-repeat left center / contain;
+}
+.season-head h1::before { --knot: var(--art-knot-b); }
+.report h1::before      { --knot: var(--art-knot-d); }
+.incident h1::before    { --knot: var(--art-knot-g); }
+
+/* the raid panel carries the two warriors */
+.plan-raid { position: relative; }
+.plan-raid::after {
+  content: ""; position: absolute; top: 0; right: 0; width: 7rem; height: 7.5rem;
+  background: var(--stone); opacity: 0.22; pointer-events: none;
+  -webkit-mask: var(--art-warriors) no-repeat right top / contain;
+          mask: var(--art-warriors) no-repeat right top / contain;
+}
+@media (max-width: 40rem) { .plan-raid::after { display: none; } }
+
+/* the end of a line gets the bracteate, a gold coin of the age */
+.report-over h1::before {
+  width: 7rem; height: 7rem; margin-bottom: 1.25rem;
+  --knot: var(--art-bracteate);
+  background: var(--stone);
+}
+
+/* a man's death in the line is a shield */
+.rep-succ { position: relative; padding-right: 5rem; }
+.rep-succ::after {
+  content: ""; position: absolute; top: 0.25rem; right: 0; width: 3.5rem; height: 6.5rem;
+  background: var(--stone); opacity: 0.4; pointer-events: none;
+  -webkit-mask: var(--art-shield-bearer) no-repeat right top / contain;
+          mask: var(--art-shield-bearer) no-repeat right top / contain;
+}
+@media (max-width: 40rem) { .rep-succ::after { display: none; } .rep-succ { padding-right: 0; } }
+
+@media print { .bar::after, .hero::before, .plan-raid::after { display: none; } }
+.layout { padding-top: 1rem; }
+.plan-raid > p { margin-right: 8rem; }
+@media (max-width: 40rem) { .plan-raid > p { margin-right: 0; } }
+
+/* ---------- neighbors ---------- */
+.nbrs { list-style: none; margin: 0; padding: 0; }
+.nbrs li { margin: 0 0 0.3rem; }
+.nbr .who { font-weight: 600; }
+.nbr .role, .nbr-stage { color: var(--stone); font-style: italic; }
+.nbr-feud .nbr-stage { color: var(--basalt); }
