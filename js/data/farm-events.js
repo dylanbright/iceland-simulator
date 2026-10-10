@@ -28,6 +28,10 @@
       apply: (c) => { c.mods.provLoss = 0.3; c.mods.condDelta = (c.mods.condDelta || 0) - 20; return 'A fire in the long house burnt part of the stores and scorched the roof.'; } },
     { id: 'damp_hay', p: { winter: 0.04 },
       apply: (c) => { c.mods.hayLoss = 0.12; return 'Damp got into the hay barn and some of the hay went bad.'; } },
+    { id: 'sea_ice', p: { summer: 0.025 },
+      apply: (c) => { c.mods.hayMult = (c.mods.hayMult || 1) * 0.7; c.mods.fishMult = (c.mods.fishMult || 1) * 0.5; return 'Drift ice from the north lay against the coast all spring. The grass came late, the fishing boats stayed in, and the cold got into everything.'; } },
+    { id: 'sheep_scab', p: { summer: 0.03, winter: 0.03 },
+      apply: (c) => { c.mods.sheepLoss = (c.mods.sheepLoss || 0) + 0.1; return 'Scab got into the flock. The sheep scratched themselves raw and some did not recover.'; } },
     { id: 'blizzard', p: { winter: 0.05 },
       apply: (c) => { c.mods.sheepLoss = (c.mods.sheepLoss || 0) + 0.08; c.mods.cattleLoss = 0.03; return 'A blizzard caught the stock out. Several sheep and a cow were lost in the drifts.'; } },
   ];

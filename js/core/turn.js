@@ -348,6 +348,7 @@
     for (const n of r.notes) rep.farm.push(n);
     if (r.hungerFrac > 0.01) rep.household.push(`There was not enough to eat: the house went short by ${Math.round(r.hungerFrac * 100)} in every hundred.`);
     if (r.clothShort > 0.5) rep.household.push('There was not enough cloth to go round, and people went in rags.');
+    if (r.dues) rep.household.push(`Thing dues and gifts to your goði took ${fmt(r.dues)} ells.`);
     if (r.hosp) rep.household.push(r.hosp.level === 'lavish' ? `You kept a lavish table (${fmt(r.hosp.cost)} ells). People talked about it.` : `You kept an open hand (${fmt(r.hosp.cost)} ells).`);
 
     // ---- the raid, if you sailed

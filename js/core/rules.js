@@ -36,13 +36,13 @@
     backgroundHazard(age, sex) {
       let h;
       if (age < 1) h = 0.14;
-      else if (age < 5) h = 0.035;
-      else if (age < 16) h = 0.01;
-      else if (age < 40) h = 0.006;
+      else if (age < 5) h = 0.045;
+      else if (age < 16) h = 0.014;
+      else if (age < 40) h = 0.009;
       else if (age < 55) h = 0.006 + (age - 39) * 0.0004;
       else h = 0.012;
-      if (sex === 'F' && age >= 16 && age <= 40) h += 0.008; // childbed
-      if (sex === 'M' && age >= 16 && age <= 50) h += 0.004; // sea, feuds, accidents
+      if (sex === 'F' && age >= 16 && age <= 40) h += 0.014; // childbed
+      if (sex === 'M' && age >= 16 && age <= 50) h += 0.007; // sea, feuds, accidents
       return h;
     },
     annualDeathHazard(age, sex) {

@@ -197,7 +197,7 @@
     return { id: pick.d.id, wifeId: wife.id, params: pick.params };
   }
 
-  const EVENT_CHANCE = 0.5, SECOND_EVENT_CHANCE = 0.12;
+  const EVENT_CHANCE = 0.6, SECOND_EVENT_CHANCE = 0.16;
 
   function pickEvent(state, rng, S, exclude) {
     const ctx = makeCtx(state, rng, null, {}, []);

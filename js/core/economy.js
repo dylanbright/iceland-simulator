@@ -24,10 +24,10 @@
     RENT: 60,                        // ells a summer, tenants only
     HAY_NEED: { cattle: 2.0, horses: 0.8, sheep: 0.25 }, // tons per animal per normal winter
     SEV: {
-      mild:   { mult: 0.85, loss: 0.6, fish: 1.15, w: 18, label: 'mild' },
-      normal: { mult: 1.0,  loss: 1.0, fish: 1.0,  w: 47, label: 'ordinary' },
-      hard:   { mult: 1.2,  loss: 1.6, fish: 0.85, w: 25, label: 'hard' },
-      severe: { mult: 1.45, loss: 2.6, fish: 0.65, w: 10, label: 'severe' },
+      mild:   { mult: 0.85, loss: 0.6, fish: 1.15, w: 13, label: 'mild' },
+      normal: { mult: 1.0,  loss: 1.0, fish: 1.0,  w: 43, label: 'ordinary' },
+      hard:   { mult: 1.2,  loss: 1.7, fish: 0.85, w: 29, label: 'hard' },
+      severe: { mult: 1.5,  loss: 3.0, fish: 0.65, w: 15, label: 'severe' },
     },
     CARE_SUMMER: { cattle: 14, sheep: 90, horses: 60 }, // animals one hand can look after
     CARE_WINTER: { cattle: 10, sheep: 80, horses: 50 },
@@ -40,9 +40,11 @@
     SLAUGHTER: { cattle: 4, sheep: 0.7 },   // rations from a carcass
     HIDE: { cattle: 5, sheep: 1 },          // ells for hide or pelt
     CLOTH: 0.9,                      // ells of cloth per adult per season
-    STORE_KEEP: 0.9, SURPLUS_STORED: 0.75, HAY_CARRY: 0.75,
-    CALVES: 0.42, LAMBS: 0.55, FOALS: 0.12,
-    BASE_LOSS: { cattle: 0.02, sheep: 0.035, horses: 0.01 },
+    STORE_KEEP: 0.84, SURPLUS_STORED: 0.7, HAY_CARRY: 0.75,
+    WOOL_KEEP: 0.95,                 // moth and damp take a share of unwoven wool each season
+    DUES: { summer: [0, 22, 32, 44, 58, 76], winter: [0, 10, 15, 22, 30, 40] }, // Thing dues, ferries, gifts to your goði: ells by farm tier
+    CALVES: 0.38, LAMBS: 0.48, FOALS: 0.11,
+    BASE_LOSS: { cattle: 0.03, sheep: 0.05, horses: 0.015 },
     PRICE: { cattle: 80, sheep: 16, horses: 80, hay: 16, food: 20, thrall: 110, land: 600 },
     BUY: 1.06, SELL: 0.88,
     PARCEL_TONS: 8,                  // a land purchase adds this much hayfield
@@ -362,6 +364,10 @@
       rep.rent = rent;
       if (paid < rent) { addHonor(-1, 'You could not pay your rent'); rep.notes.push('You could not pay the rent in full.'); }
     }
+    rep.dues = C.DUES[S][tier] || 0;
+    rep.duesShort = rep.dues - pay(f, rep.dues);
+    if (rep.duesShort > 0.5) { addHonor(-0.5, 'You could not pay your dues'); rep.notes.push('You could not pay your Thing dues in full, and your goði noticed.'); }
+    f.wool *= C.WOOL_KEEP;
     const hc = plan.hospitality === 'plain' ? 0 : C.HOSP.cost[plan.hospitality][tier] * (S === 'winter' ? C.HOSP.winterMult : 1);
     if (hc > 0) {
       const paid = pay(f, hc);

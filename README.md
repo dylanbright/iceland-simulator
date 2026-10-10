@@ -32,3 +32,6 @@ Decoration comes from the purchased Viking-art pack in `PNG/` (kept out of the g
 
 ## Feuds
 Neighbors you wrong turn on you, following the Njáls saga ladder (insults, stock, hay, a thrall, a kinsman, the burning). See `js/core/feud.js` and `js/data/feud-events.js`. Stress test: `node test/feud.js 60 60 mixed`.
+
+## Difficulty
+The game is tuned to be noticeably hard: Thing dues, spoilage, harsher winters, higher mortality, and dilemma events (thieves, epidemics, debts, a goði's demands, lawsuits) where every choice costs something. Tuning lives in `js/core/economy.js`, `js/core/rules.js`, and `js/core/household.js`.
