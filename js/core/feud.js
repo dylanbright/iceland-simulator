@@ -146,6 +146,26 @@
     return list.length ? rng.pick(list) : null;
   };
 
+  /** A confrontation turns deadly: one of your men dies, and the killing becomes its own event
+   *  (blood-money, a suit at the Althing, or revenge). Returns a sentence for the result text, or ''. */
+  function bloodshed(state, rng, ctx, farm, head, chance) {
+    if (!rng.chance(chance)) return '';
+    const victim = pickMale(state, rng, ['son', 'brother', 'servant'], 16);
+    if (!victim) return '';
+    const kind = victim.role === 'servant' ? 'servant' : victim.role === 'son' ? 'son' : 'kin';
+    ctx.kill(victim, `was killed in the fight with the men of ${farm}`, 'killed in a feud');
+    state.pending.push({ id: 'feud_kin', wifeId: null, kind: 'event', params: { farm, head, victim: victim.first, relation: victim.role, value: wergild(state, kind), how: 'skirmish' } });
+    return ` ${victim.first} did not ride home.`;
+  }
+  /** The other side loses a man to you: they now have a claim, and will bring it. */
+  function theyFall(state, rng, farm, chance) {
+    if (!rng.chance(chance)) return '';
+    const f = get(state, farm);
+    if (f) f.owedThem += wergild(state, 'kin');
+    bump(state, farm, -12);
+    return ' One of their men was killed in it, and his kin will want a price for him.';
+  }
+
   function livestock(state, rng, ctx, f, head) {
     const fm = state.farm, P = IS.Economy.C.PRICE;
     const opts = [];
@@ -214,5 +234,5 @@
     }
   }
 
-  IS.Feud = { HOSTILE, STAGES, word, get, rel, bump, ensure, escalate, end, whyOf, men, fightOdds, lawChance, wergild, oddsWord, tick, summary, seed };
+  IS.Feud = { HOSTILE, STAGES, word, get, rel, bump, ensure, escalate, end, whyOf, men, fightOdds, lawChance, wergild, oddsWord, tick, summary, seed, bloodshed, theyFall };
 })();

@@ -169,8 +169,8 @@
             run: () => { c.pay(cost); c.goodwill(c.p.farm, 25); F.escalate(c.state, c.p.farm, -1); const f = F.get(c.state, c.p.farm); if (f && c.state.relations[c.p.farm] > F.HOSTILE) F.end(c.state, c.p.farm); c.honor(-0.5, `Peace bought with ${c.p.farm}`); return `${c.p.head} took the silver and the matter is closed, for now.`; } },
           { id: 'ride', label: 'Ride out to meet them', desc: 'Honor +2.5 if you prevail, −2.5 and damage if you do not. It also hardens them.',
             run: () => {
-              if (c.rng.chance(odds)) { c.goodwill(c.p.farm, -8); c.honor(2.5, `You faced down ${c.p.farm}`); return `${c.p.head}'s men turned back. You will hear from him again.`; }
-              c.honor(-2.5, `You were bested by ${c.p.farm}`); c.state.farm.condition = Math.max(0, c.state.farm.condition - 8); F.escalate(c.state, c.p.farm, 1); c.goodwill(c.p.farm, -5); return `They were more than you expected, and they left a shed burning.`;
+              if (c.rng.chance(odds)) { c.goodwill(c.p.farm, -8); c.honor(2.5, `You faced down ${c.p.farm}`); return `${c.p.head}'s men turned back. You will hear from him again.${F.theyFall(c.state, c.rng, c.p.farm, 0.25)}`; }
+              c.honor(-2.5, `You were bested by ${c.p.farm}`); c.state.farm.condition = Math.max(0, c.state.farm.condition - 8); F.escalate(c.state, c.p.farm, 1); c.goodwill(c.p.farm, -5); return `They were more than you expected, and they left a shed burning.${F.bloodshed(c.state, c.rng, c, c.p.farm, c.p.head, 0.4)}`;
             } },
           { id: 'ignore', label: 'Pretend not to notice', desc: 'Honor −2. They will be bolder next time.', run: () => { c.honor(-2, `You ignored ${c.p.farm}'s threats`); F.escalate(c.state, c.p.farm, 1); return 'People said you were afraid. They were not entirely wrong.'; } },
         ];

@@ -40,9 +40,9 @@
       { id: 'retaliate', label: 'Pay him back in kind', desc: `Take as much of his as he took of yours. ${cap(word(odds))}. It will not end it.`,
         run: () => {
           up(c); owe(c, v * 0.8);
-          if (c.rng.chance(odds)) { c.earn(v * 0.8); c.honor(0.5, `You answered ${c.p.farm} in kind`); sour(c, -12); return `Your men came home before dawn with his stock. Everyone knows whose it was.`; }
+          if (c.rng.chance(odds)) { c.earn(v * 0.8); c.honor(0.5, `You answered ${c.p.farm} in kind`); sour(c, -12); return `Your men came home before dawn with his stock. Everyone knows whose it was.${F().theyFall(c.state, c.rng, c.p.farm, 0.2)}`; }
           c.honor(-2, `Your reprisal on ${c.p.farm} failed`); sour(c, -8); const n = wound(c);
-          return `His herdsmen were waiting. You came home empty-handed and ${n > 6 ? 'badly ' : ''}hurt.`;
+          return `His herdsmen were waiting. You came home empty-handed and ${n > 6 ? 'badly ' : ''}hurt.${F().bloodshed(c.state, c.rng, c, c.p.farm, c.p.head, 0.3)}`;
         } },
       { id: 'bear', label: 'Say nothing', desc: 'Honor −1.5. He may take it for weakness.',
         run: () => { c.honor(-1.5, `You let ${c.p.farm} take ${what} unanswered`); if (c.rng.chance(0.5)) up(c); return 'People talked of it at the Thing, and not kindly.'; } },
@@ -68,7 +68,7 @@
                 if (c.rng.chance(0.2)) { up(c); owe(c, F().wergild(c.state, 'kin')); return `You won, and he did not get up. His kin are already counting what you owe.`; }
                 return `He yielded after the third bout. Nobody makes verses about you now.`;
               }
-              c.honor(-3, `${c.p.head} bested you on the island`); wound(c); up(c); return `He cut you across the arm and the Thing was quiet. You will not forget it, and neither will he.`;
+              c.honor(-3, `${c.p.head} bested you on the island`); wound(c); up(c); return `He cut you across the arm and the Thing was quiet. You will not forget it, and neither will he.${F().bloodshed(c.state, c.rng, c, c.p.farm, c.p.head, 0.15)}`;
             } },
           { id: 'law', label: 'Prosecute the verse', cost: 25, desc: `${ells(25)}. Slander is a case at law. ${cap(word(L))}. A win brings a fine and Honor +1.`,
             run: () => { c.pay(25); sour(c, -6); if (c.rng.chance(L)) { c.earn(50 + 10 * c.tier); c.honor(1, `You won a slander case against ${c.p.farm}`); return `The court fined him, and the fine was read out where everyone could hear it.`; } c.honor(-1, 'A slander case you lost'); return `The judges said it was only a verse.`; } },
@@ -114,7 +114,7 @@
 
     { id: 'feud_kin', w: 0, needs: () => null,
       title: (c) => `${c.p.victim} is killed`,
-      body: (c) => [`${c.p.victim}, ${c.p.relation === 'servant' ? 'a free man of your house' : 'your ' + c.p.relation}, was killed by men of ${c.p.farm}. ${c.p.head} led them himself. His body was left where it fell, and the whole district knows what the law and honor now demand of you.`],
+      body: (c) => [c.p.how === 'skirmish' ? `${c.p.victim}, ${c.p.relation === 'servant' ? 'a free man of your house' : 'your ' + c.p.relation}, was killed in the fight with ${c.p.head}'s men. Both sides will say the other struck first. Either way he is dead, and the district is watching to see whether your family demands a price, a verdict, or blood.` : `${c.p.victim}, ${c.p.relation === 'servant' ? 'a free man of your house' : 'your ' + c.p.relation}, was killed by men of ${c.p.farm}. ${c.p.head} led them himself. His body was left where it fell, and the whole district knows what the law and honor now demand of you.`],
       options: (c) => {
         const v = c.p.value, L = F().lawChance(c.state, c.p.farm, 0.22), arb = Math.min(0.75, 0.55 + c.head.attrs.honor / 400);
         const away = !!c.state.expedition;
