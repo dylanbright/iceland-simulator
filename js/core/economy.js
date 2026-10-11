@@ -496,13 +496,28 @@
     while (foodGap > 0 && plan.sell.cattle > 0) { plan.sell.cattle--; plan.cull.cattle++; foodGap -= C.SLAUGHTER.cattle; }
     if (foodGap > 0.3 && cashOf(f) > Math.ceil(foodGap) * priceOf('food') + 100) plan.buy.food = Math.ceil(foodGap);
 
-    // In summer, lay in the winter's meat: slaughter sheep (sold ones first) until the stores will last.
+    // In summer, lay in the winter's meat. Slaughter is kept modest (a seventh of the flock, those that would be sold anyway
+    // first); the rest of the gap is bought as food if there is cash to spare, and only a real shortage forces a bigger cull.
     if (S === 'summer') {
       o = outlook(state, plan);
       let gapStore = o.rationNeed * 1.1 - o.res.farm.provisions;
-      const sheepLeft = () => f.sheep - plan.sell.sheep - plan.cull.sheep;
-      if (gapStore > 0 && plan.sell.sheep > 0) { const n = Math.min(plan.sell.sheep, Math.ceil(gapStore / (C.SLAUGHTER.sheep * C.STORE_KEEP))); plan.sell.sheep -= n; plan.cull.sheep += n; gapStore -= n * C.SLAUGHTER.sheep * C.STORE_KEEP; }
-      if (gapStore > 0 && sheepLeft() > 8) { const n = Math.min(sheepLeft() - 8, Math.ceil(gapStore / (C.SLAUGHTER.sheep * C.STORE_KEEP))); plan.cull.sheep += n; gapStore -= n * C.SLAUGHTER.sheep * C.STORE_KEEP; }
+      const per = C.SLAUGHTER.sheep * C.STORE_KEEP;
+      const flock = f.sheep, sheepLeft = () => f.sheep - plan.sell.sheep - plan.cull.sheep;
+      const softCap = Math.max(2, Math.ceil(flock / 7)), hardCap = Math.max(4, Math.ceil(flock * 0.3));
+      const cullMore = (cap) => {
+        if (gapStore <= 0) return;
+        let n = Math.min(Math.max(0, cap - plan.cull.sheep), Math.ceil(gapStore / per), Math.max(0, sheepLeft() - 8));
+        const fromSale = Math.min(plan.sell.sheep, n);
+        plan.sell.sheep -= fromSale; plan.cull.sheep += n; gapStore -= n * per;
+      };
+      cullMore(softCap);
+      const reserve = 250 + 40 * tierOfFarm(f);
+      if (gapStore > 0.5) {
+        const afford = Math.max(0, Math.floor((cashOf(f) - reserve) / priceOf('food')));
+        const n = Math.min(afford, Math.ceil(gapStore));
+        if (n > 0) { plan.buy.food += n; gapStore -= n; }
+      }
+      cullMore(hardCap);
       if (gapStore > 0.5 && cashOf(f) > Math.ceil(gapStore) * priceOf('food') + 100) plan.buy.food += Math.ceil(gapStore);
     }
 
