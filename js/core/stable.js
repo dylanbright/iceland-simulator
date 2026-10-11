@@ -48,7 +48,11 @@
     state.stable.splice(0, Math.min(n, state.stable.length));
   }
 
+  function sellIds(state, ids) {
+    state.stable = (state.stable || []).filter((h) => !ids.includes(h.id));
+  }
+
   const best = (state, key) => (state.stable || []).slice().sort((a, b) => b[key] - a[key] || worth(b) - worth(a))[0] || null;
 
-  IS.Stable = { NAMES, word, make, sync, sell, best, worth };
+  IS.Stable = { NAMES, word, make, sync, sell, sellIds, best, worth };
 })();

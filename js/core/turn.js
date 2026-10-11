@@ -357,7 +357,7 @@
       if (r.fish > 0.5) rep.farm.push(`Hunting and fishing brought in ${fmt(r.fish)} rations.`);
     }
     if (r.cullC || r.cullS) rep.herd.push(`You slaughtered ${[r.cullC && plural(r.cullC, 'head of cattle', 'head of cattle'), r.cullS && plural(r.cullS, 'sheep', 'sheep')].filter(Boolean).join(' and ')}.`);
-    const sold = [r.sold.cattle && plural(r.sold.cattle, 'head of cattle', 'head of cattle'), r.sold.sheep && plural(r.sold.sheep, 'sheep', 'sheep'), r.sold.horses && plural(r.sold.horses, 'horse', 'horses')].filter(Boolean);
+    const sold = [r.sold.cattle && plural(r.sold.cattle, 'head of cattle', 'head of cattle'), r.sold.sheep && plural(r.sold.sheep, 'sheep', 'sheep')].filter(Boolean);
     if (sold.length) rep.herd.push(`You sold ${sold.join(', ')}.`);
     {
       const mk = (state.market = state.market || {});
@@ -382,7 +382,7 @@
 
     // ---- people
     sellThralls(state, r.sold.thralls, rep);
-    if (r.sold.horses) IS.Stable.sell(state, r.sold.horses);
+    if (r.sold.horses) { IS.Stable.sellIds(state, r.soldHorseIds || []); if (r.soldHorseNames && r.soldHorseNames.length) rep.herd.push(`You sold ${r.soldHorseNames.join(', ')} at market.`); }
     buyThralls(state, rng, year, b.thralls, rep);
     hireServants(state, rng, year, b.servants, rep);
     if (r.wagesShort > 0.5) dismissUnpaid(state, r.wagesShort, rep);

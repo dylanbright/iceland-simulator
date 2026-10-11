@@ -205,15 +205,34 @@
       herd.map(([key, label, priceKey]) => h('div', { class: 'stock-row' },
         h('div', { class: 'row-text' }, h('div', { class: 'row-label' }, label), liveText('div', 'row-hint', () => {
           const ns = plan.sell[key], nb = plan.buy[key], m = (prices && prices[priceKey]) || 1;
-          let t = `You have ${f[key]}. Sells for ${px(priceKey, false)} ells, costs ${px(priceKey, true)} to buy.`;
-          if (ns > 1) t += ` Selling ${ns} brings about ${fmt(E.lot(priceKey, ns, false, m).total)} ells in all (about ${Math.round(E.lot(priceKey, ns, false, m).avg)} each): a crowded market pays less.`;
+          let t = key === 'horses' ? `You have ${f[key]}. A horse sells for what it is worth: swift, strong horses fetch more. Costs about ${px(priceKey, true)} to buy, and you cannot tell how good a horse is until it is yours.`
+            : `You have ${f[key]}. Sells for ${px(priceKey, false)} ells, costs ${px(priceKey, true)} to buy.`;
+          if (key !== 'horses' && ns > 1) t += ` Selling ${ns} brings about ${fmt(E.lot(priceKey, ns, false, m).total)} ells in all (about ${Math.round(E.lot(priceKey, ns, false, m).avg)} each): a crowded market pays less.`;
           if (nb > 1) t += ` Buying ${nb} costs about ${fmt(E.lot(priceKey, nb, true, m).total)} ells in all.`;
           return t;
         })),
         h('div', { class: 'stock-ctls' },
           key === 'horses' ? null : h('label', { class: 'mini' }, h('span', null, 'Slaughter'), stepper({ aria: 'Slaughter ' + label.toLowerCase(), get: () => plan.cull[key], set: (v) => { plan.cull[key] = v; }, max: () => f[key] - plan.sell[key] })),
-          h('label', { class: 'mini' }, h('span', null, 'Sell'), stepper({ aria: 'Sell ' + label.toLowerCase(), get: () => plan.sell[key], set: (v) => { plan.sell[key] = v; }, max: () => f[key] - (plan.cull[key] || 0) })),
-          h('label', { class: 'mini' }, h('span', null, 'Buy'), stepper({ aria: 'Buy ' + label.toLowerCase(), get: () => plan.buy[key], set: (v) => { plan.buy[key] = v; }, max: () => 40 }))))));
+          key === 'horses' ? null : h('label', { class: 'mini' }, h('span', null, 'Sell'), stepper({ aria: 'Sell ' + label.toLowerCase(), get: () => plan.sell[key], set: (v) => { plan.sell[key] = v; }, max: () => f[key] - (plan.cull[key] || 0) })),
+          h('label', { class: 'mini' }, h('span', null, 'Buy'), stepper({ aria: 'Buy ' + label.toLowerCase(), get: () => plan.buy[key], set: (v) => { plan.buy[key] = v; }, max: () => 40 }))))),
+      // each horse is its own animal: pick the ones to sell
+      (state.stable && state.stable.length) ? h('div', { class: 'horse-sale' },
+        h('h3', null, 'Your horses: choose any to sell'),
+        h('ul', { class: 'horse-list' }, state.stable.slice().sort((a, b) => IS.Stable.worth(b) - IS.Stable.worth(a)).map((x) => {
+          const cb = h('input', { type: 'checkbox', onchange: (e) => {
+            const set = new Set(plan.sellHorseIds || []);
+            if (e.target.checked) set.add(x.id); else set.delete(x.id);
+            plan.sellHorseIds = [...set]; plan.sell.horses = plan.sellHorseIds.length; update();
+          } });
+          if ((plan.sellHorseIds || []).includes(x.id)) cb.checked = true;
+          const price = h('span', { class: 'horse-price' });
+          reg(() => {
+            const ids = plan.sellHorseIds || [], mult = (prices && prices.horses) || 1;
+            if (ids.includes(x.id)) { const e = E.horseLot(state.stable.filter((y) => ids.includes(y.id)), mult).each.find((z) => z.id === x.id); price.textContent = `sells for ${e ? e.price : '?'} ells`; }
+            else price.textContent = `would fetch about ${E.horseLot([x], mult).total} ells`;
+          });
+          return h('li', null, h('label', { class: 'check' }, cb, h('span', null, h('b', null, x.name), ` Speed ${x.speed}, Strength ${x.strength}`, ' ', price)));
+        }))) : null);
 
     /* --- goods --- */
     const goods = h('section', { class: 'plan-sec' },

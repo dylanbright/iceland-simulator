@@ -114,6 +114,15 @@
     total = Math.round(total);
     return { total, avg: n ? total / n : Math.round(base) };
   }
+  /** A horse's worth against the average horse: good ones fetch more, poor ones less. */
+  const horseQuality = (h) => clamp(1 + (h.speed + h.strength - 100) / 120, 0.55, 1.6);
+  /** What selling these particular horses brings: best first, each one sold pushes the price down a little. */
+  function horseLot(horses, mult) {
+    const base = C.PRICE.horses * (mult || 1) * C.SELL, I = C.IMPACT.horses;
+    const sorted = horses.slice().sort((a, b) => horseQuality(b) - horseQuality(a));
+    const each = sorted.map((h, i) => ({ id: h.id, price: Math.max(1, Math.round(base * horseQuality(h) * Math.max(C.IMPACT_FLOOR, 1 - I * i))) }));
+    return { total: each.reduce((a, x) => a + x.price, 0), each };
+  }
   const landPrice = (f, idx) => Math.round(C.PRICE.land * (1 + f.landValue / 8000) * (idx || 1));
   const tierOfFarm = (f) => A.tierOf(wealth(f));
 
@@ -193,6 +202,7 @@
       labour: lab,
       cull: { cattle: g(p.cull, 'cattle'), sheep: g(p.cull, 'sheep') },
       sell: { cattle: g(p.sell, 'cattle'), sheep: g(p.sell, 'sheep'), horses: g(p.sell, 'horses'), thralls: g(p.sell, 'thralls') },
+      sellHorseIds: Array.isArray(p.sellHorseIds) ? p.sellHorseIds.filter((id, i, a) => a.indexOf(id) === i && (state.stable || []).some((h) => h.id === id)) : [],
       buy: { hay: g(p.buy, 'hay'), food: g(p.buy, 'food'), cattle: g(p.buy, 'cattle'), sheep: g(p.buy, 'sheep'), horses: g(p.buy, 'horses'), thralls: g(p.buy, 'thralls'), servants: g(p.buy, 'servants'), land: g(p.buy, 'land') },
       hospitality: ['plain', 'open', 'lavish'].includes(p.hospitality) ? p.hospitality : 'plain',
       treatment: ['harsh', 'fair', 'kind'].includes(p.treatment) ? p.treatment : 'fair',
@@ -244,7 +254,20 @@
 
     const sold = {}, pressure = {};
     const mult = (k) => (env.prices && env.prices[k]) || 1;
-    for (const [k, key] of [['cattle', 'cattle'], ['sheep', 'sheep'], ['horses', 'horses']]) {
+    // horses are sold one by one: the ones you named, else the poorest
+    {
+      const stable = state.stable || [];
+      let chosen = plan.sellHorseIds.map((id) => stable.find((h) => h.id === id)).filter(Boolean);
+      const want = Math.min(Math.max(plan.sell.horses, chosen.length), f.horses);
+      if (chosen.length < want) chosen = chosen.concat(stable.filter((h) => !chosen.includes(h)).sort((a, b) => (a.speed + a.strength) - (b.speed + b.strength)).slice(0, want - chosen.length));
+      chosen = chosen.slice(0, f.horses);
+      const lotH = horseLot(chosen, mult('horses'));
+      f.horses -= chosen.length;
+      f.vadmal += chosen.length && stable.length ? lotH.total : lot('horses', chosen.length, false, mult('horses')).total;
+      sold.horses = chosen.length; rep.soldHorseIds = chosen.map((h) => h.id); rep.soldHorseNames = chosen.map((h) => h.name);
+      if (chosen.length) pressure.horses = -chosen.length;
+    }
+    for (const [k, key] of [['cattle', 'cattle'], ['sheep', 'sheep']]) {
       const n = Math.min(plan.sell[k], f[key]);
       f[key] -= n;
       f.vadmal += lot(k, n, false, mult(k)).total;
@@ -559,7 +582,7 @@
   IS.Economy = {
     C, CATS, SEV_ORDER,
     seasonOf, yearOf, cashOf, wealth, pay, adjust,
-    hayCapacity, hayQuality, hayNeed, herdNeed, landPrice, lot, tierOfFarm,
+    hayCapacity, hayQuality, hayNeed, herdNeed, landPrice, lot, horseLot, horseQuality, tierOfFarm,
     members, workPower, workforce, labourOf,
     canSeekWife, normalizePlan, season, expectedEnv, outlook, suggest, initFarm,
   };
