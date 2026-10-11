@@ -47,6 +47,9 @@
     BASE_LOSS: { cattle: 0.03, sheep: 0.05, horses: 0.015 },
     PRICE: { cattle: 80, sheep: 16, horses: 80, hay: 16, food: 20, thrall: 110, land: 600 },
     BUY: 1.06, SELL: 0.88,
+    // how far each animal you put on the market moves its price (fraction of base), and how far the price can go
+    IMPACT: { cattle: 0.035, sheep: 0.018, horses: 0.05, thrall: 0.06 },
+    IMPACT_FLOOR: 0.45, IMPACT_CEIL: 1.7,
     PARCEL_TONS: 8,                  // a land purchase adds this much hayfield
     HOSP: {
       cost: { open: [0, 10, 24, 44, 70, 110], lavish: [0, 26, 62, 114, 182, 286] },
@@ -103,6 +106,14 @@
   };
   const hayNeed = (f, sev) =>
     (f.cattle * C.HAY_NEED.cattle + f.horses * C.HAY_NEED.horses + f.sheep * C.HAY_NEED.sheep) * C.SEV[sev].mult * (1 - 0.0008 * (f.condition - 50));
+  /** What a lot of n animals fetches (or costs): each one moves the price against you. */
+  function lot(kind, n, buying, mult) {
+    const base = C.PRICE[kind] * (mult || 1) * (buying ? C.BUY : C.SELL), I = C.IMPACT[kind] || 0;
+    let total = 0;
+    for (let i = 0; i < n; i++) total += Math.max(1, base * (buying ? Math.min(C.IMPACT_CEIL, 1 + I * i) : Math.max(C.IMPACT_FLOOR, 1 - I * i)));
+    total = Math.round(total);
+    return { total, avg: n ? total / n : Math.round(base) };
+  }
   const landPrice = (f, idx) => Math.round(C.PRICE.land * (1 + f.landValue / 8000) * (idx || 1));
   const tierOfFarm = (f) => A.tierOf(wealth(f));
 
@@ -181,8 +192,8 @@
     return {
       labour: lab,
       cull: { cattle: g(p.cull, 'cattle'), sheep: g(p.cull, 'sheep') },
-      sell: { cattle: g(p.sell, 'cattle'), sheep: g(p.sell, 'sheep'), horses: g(p.sell, 'horses') },
-      buy: { hay: g(p.buy, 'hay'), food: g(p.buy, 'food'), cattle: g(p.buy, 'cattle'), sheep: g(p.buy, 'sheep'), thralls: g(p.buy, 'thralls'), servants: g(p.buy, 'servants'), land: g(p.buy, 'land') },
+      sell: { cattle: g(p.sell, 'cattle'), sheep: g(p.sell, 'sheep'), horses: g(p.sell, 'horses'), thralls: g(p.sell, 'thralls') },
+      buy: { hay: g(p.buy, 'hay'), food: g(p.buy, 'food'), cattle: g(p.buy, 'cattle'), sheep: g(p.buy, 'sheep'), horses: g(p.buy, 'horses'), thralls: g(p.buy, 'thralls'), servants: g(p.buy, 'servants'), land: g(p.buy, 'land') },
       hospitality: ['plain', 'open', 'lavish'].includes(p.hospitality) ? p.hospitality : 'plain',
       treatment: ['harsh', 'fair', 'kind'].includes(p.treatment) ? p.treatment : 'fair',
       seekWife: !!p.seekWife && canSeekWife(state) && !(p.raid && p.raid.dest),
@@ -231,16 +242,21 @@
     f.vadmal += cullC * C.HIDE.cattle + cullS * C.HIDE.sheep;
     Object.assign(rep, { cullC, cullS });
 
-    const sold = {};
+    const sold = {}, pressure = {};
+    const mult = (k) => (env.prices && env.prices[k]) || 1;
     for (const [k, key] of [['cattle', 'cattle'], ['sheep', 'sheep'], ['horses', 'horses']]) {
       const n = Math.min(plan.sell[k], f[key]);
       f[key] -= n;
-      f.vadmal += n * price(k, false);
+      f.vadmal += lot(k, n, false, mult(k)).total;
       sold[k] = n;
+      if (n) pressure[k] = -n;
     }
+    const nT = Math.min(plan.sell.thralls || 0, state.household.thralls.length);
+    sold.thralls = nT;
+    if (nT) { f.vadmal += lot('thrall', nT, false, mult('thrall')).total; pressure.thrall = -nT; }
     rep.sold = sold;
 
-    const bought = { hay: 0, food: 0, cattle: 0, sheep: 0, thralls: 0, servants: 0, land: 0 };
+    const bought = { hay: 0, food: 0, cattle: 0, sheep: 0, horses: 0, thralls: 0, servants: 0, land: 0 };
     const buy = (kind, key, want) => {
       const p = price(kind, true);
       const n = Math.max(0, Math.min(want, Math.floor(cashOf(f) / p + 1e-9)));
@@ -249,11 +265,22 @@
       if (n < want) rep.notes.push(`You could not afford all ${key === 'food' ? 'the provisions' : key} you wanted.`);
       return n;
     };
+    // animals and thralls: every one you buy pushes the price up
+    const buyLot = (kind, key, want) => {
+      let n = Math.max(0, want);
+      while (n > 0 && lot(kind, n, true, mult(kind)).total > cashOf(f) + 1e-9) n--;
+      if (n > 0) { pay(f, lot(kind, n, true, mult(kind)).total); pressure[kind] = (pressure[kind] || 0) + n; }
+      bought[key] = n;
+      if (n < want) rep.notes.push(`You could not afford all the ${key} you wanted.`);
+      return n;
+    };
     f.hay += buy('hay', 'hay', plan.buy.hay);
     const boughtFood = buy('food', 'food', plan.buy.food);
-    f.cattle += buy('cattle', 'cattle', plan.buy.cattle);
-    f.sheep += buy('sheep', 'sheep', plan.buy.sheep);
-    buy('thrall', 'thralls', plan.buy.thralls);
+    f.cattle += buyLot('cattle', 'cattle', plan.buy.cattle);
+    f.sheep += buyLot('sheep', 'sheep', plan.buy.sheep);
+    f.horses += buyLot('horses', 'horses', plan.buy.horses);
+    buyLot('thrall', 'thralls', plan.buy.thralls);
+    rep.pressure = pressure;
     if (plan.buy.servants) {
       const n = Math.max(0, Math.min(plan.buy.servants, Math.floor(cashOf(f) / C.HIRE_FEE + 1e-9)));
       pay(f, n * C.HIRE_FEE);
@@ -517,7 +544,7 @@
   IS.Economy = {
     C, CATS, SEV_ORDER,
     seasonOf, yearOf, cashOf, wealth, pay, adjust,
-    hayCapacity, hayQuality, hayNeed, herdNeed, landPrice, tierOfFarm,
+    hayCapacity, hayQuality, hayNeed, herdNeed, landPrice, lot, tierOfFarm,
     members, workPower, workforce, labourOf,
     canSeekWife, normalizePlan, season, expectedEnv, outlook, suggest, initFarm,
   };

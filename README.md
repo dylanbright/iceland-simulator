@@ -35,3 +35,6 @@ Neighbors you wrong turn on you, following the Njáls saga ladder (insults, stoc
 
 ## Difficulty
 The game is tuned to be noticeably hard: Thing dues, spoilage, harsher winters, higher mortality, and dilemma events (thieves, epidemics, debts, a goði's demands, lawsuits) where every choice costs something. Tuning lives in `js/core/economy.js`, `js/core/rules.js`, and `js/core/household.js`.
+
+## Markets
+Prices vary each season. Every animal or thrall you sell pushes the price down and every one you buy pushes it up, so a big sale of sheep fetches less per head; the planning screen shows the total for the lot. The glut lingers into the next season at half strength. You can buy horses and sell thralls (the most resentful go first). `node test/market.js` checks this.

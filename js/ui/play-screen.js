@@ -165,11 +165,17 @@
       h('h2', null, 'Livestock'),
       h('p', { class: 'sec-note' }, 'A slaughtered cow feeds four people for a season and a sheep feeds less than one. Sold animals bring cash. Every animal you keep needs hay all winter.'),
       herd.map(([key, label, priceKey]) => h('div', { class: 'stock-row' },
-        h('div', { class: 'row-text' }, h('div', { class: 'row-label' }, label), liveText('div', 'row-hint', () => `You have ${f[key]}. Sells for ${px(priceKey, false)} ells, costs ${px(priceKey, true)} to buy.`)),
+        h('div', { class: 'row-text' }, h('div', { class: 'row-label' }, label), liveText('div', 'row-hint', () => {
+          const ns = plan.sell[key], nb = plan.buy[key], m = (prices && prices[priceKey]) || 1;
+          let t = `You have ${f[key]}. Sells for ${px(priceKey, false)} ells, costs ${px(priceKey, true)} to buy.`;
+          if (ns > 1) t += ` Selling ${ns} brings about ${fmt(E.lot(priceKey, ns, false, m).total)} ells in all (about ${Math.round(E.lot(priceKey, ns, false, m).avg)} each): a crowded market pays less.`;
+          if (nb > 1) t += ` Buying ${nb} costs about ${fmt(E.lot(priceKey, nb, true, m).total)} ells in all.`;
+          return t;
+        })),
         h('div', { class: 'stock-ctls' },
           key === 'horses' ? null : h('label', { class: 'mini' }, h('span', null, 'Slaughter'), stepper({ aria: 'Slaughter ' + label.toLowerCase(), get: () => plan.cull[key], set: (v) => { plan.cull[key] = v; }, max: () => f[key] - plan.sell[key] })),
           h('label', { class: 'mini' }, h('span', null, 'Sell'), stepper({ aria: 'Sell ' + label.toLowerCase(), get: () => plan.sell[key], set: (v) => { plan.sell[key] = v; }, max: () => f[key] - (plan.cull[key] || 0) })),
-          key === 'horses' ? null : h('label', { class: 'mini' }, h('span', null, 'Buy'), stepper({ aria: 'Buy ' + label.toLowerCase(), get: () => plan.buy[key], set: (v) => { plan.buy[key] = v; }, max: () => 40 }))))));
+          h('label', { class: 'mini' }, h('span', null, 'Buy'), stepper({ aria: 'Buy ' + label.toLowerCase(), get: () => plan.buy[key], set: (v) => { plan.buy[key] = v; }, max: () => 40 }))))));
 
     /* --- goods --- */
     const goods = h('section', { class: 'plan-sec' },
@@ -203,6 +209,7 @@
       h('h3', null, 'Taking people on'),
       row('Hire servants', `${C.HIRE_FEE} ells to take one on, then ${C.WAGE} ells a season. You have ${state.household.servants.length}.`, stepper({ aria: 'Hire servants', get: () => plan.buy.servants, set: (v) => { plan.buy.servants = v; }, max: () => 3 })),
       row('Buy a thrall', `${px('thrall', true)} ells each. You have ${state.household.thralls.length}. Too many thralls to free men invites revolt.`, stepper({ aria: 'Buy thralls', get: () => plan.buy.thralls, set: (v) => { plan.buy.thralls = v; }, max: () => 3 })),
+      state.household.thralls.length ? row('Sell a thrall', `${px('thrall', false)} ells each. The most resentful go first. You have ${state.household.thralls.length}.`, stepper({ aria: 'Sell thralls', get: () => plan.sell.thralls, set: (v) => { plan.sell.thralls = v; }, max: () => state.household.thralls.length })) : null,
       E.canSeekWife(state) ? h('label', { class: 'check' },
         (() => { const i = h('input', { type: 'checkbox', onchange: (e) => { plan.seekWife = e.target.checked; update(); } }); if (plan.seekWife) i.checked = true; return i; })(),
         h('span', null, h('b', null, state.household.wives.length ? 'Court a second wife this summer. ' : 'Court a wife this summer. '),

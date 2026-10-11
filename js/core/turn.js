@@ -44,6 +44,13 @@
       thrall: r2(clamp(1 + g(0.08), 0.8, 1.25)),
       land: 1,
     };
+    // yesterday's selling and buying still weighs on the market, at half strength each season
+    const mk = (state.market = state.market || {});
+    for (const k of Object.keys(mk)) {
+      mk[k] = r2(mk[k] * 0.5);
+      if (Math.abs(mk[k]) < 0.01) delete mk[k];
+      else if (env.prices[k] != null) env.prices[k] = r2(clamp(env.prices[k] * (1 + mk[k]), 0.4, 1.9));
+    }
     state.env = env;
   }
 
@@ -158,6 +165,15 @@
       state.people[t.id] = t; state.household.thralls.push(t.id);
     }
     if (n) rep.household.push(`You bought ${plural(n, 'thrall', 'thralls')}.`);
+  }
+
+  function sellThralls(state, n, rep) {
+    if (!n) return;
+    // the troublemakers go first
+    const list = state.household.thralls.map((id) => state.people[id]).filter(Boolean)
+      .sort((a, b) => (b.attrs.resentment == null ? 35 : b.attrs.resentment) - (a.attrs.resentment == null ? 35 : a.attrs.resentment)).slice(0, n);
+    for (const t of list) { removeFromHousehold(state, t.id); t.sold = true; }
+    if (list.length) rep.household.push(`You sold ${list.map((t) => t.first).join(', ')} at market.`);
   }
 
   function hireServants(state, rng, year, n, rep) {
@@ -342,8 +358,14 @@
     if (r.cullC || r.cullS) rep.herd.push(`You slaughtered ${[r.cullC && plural(r.cullC, 'head of cattle', 'head of cattle'), r.cullS && plural(r.cullS, 'sheep', 'sheep')].filter(Boolean).join(' and ')}.`);
     const sold = [r.sold.cattle && plural(r.sold.cattle, 'head of cattle', 'head of cattle'), r.sold.sheep && plural(r.sold.sheep, 'sheep', 'sheep'), r.sold.horses && plural(r.sold.horses, 'horse', 'horses')].filter(Boolean);
     if (sold.length) rep.herd.push(`You sold ${sold.join(', ')}.`);
+    {
+      const mk = (state.market = state.market || {});
+      for (const [k, n] of Object.entries(r.pressure || {})) mk[k] = clamp((mk[k] || 0) + (C.IMPACT[k] || 0) * n * 0.5, -0.3, 0.3);
+      if (r.pressure && r.pressure.sheep < -10) rep.herd.push('So many sheep at market drove the price down.');
+      else if (r.pressure && r.pressure.cattle < -4) rep.herd.push('So many cattle at market drove the price down.');
+    }
     const b = r.bought;
-    const got = [b.hay && `${fmt(b.hay)} tons of hay`, b.food && `${fmt(b.food)} rations of food`, b.cattle && plural(b.cattle, 'head of cattle', 'head of cattle'), b.sheep && plural(b.sheep, 'sheep', 'sheep'), b.land && `${plural(b.land, 'parcel', 'parcels')} of land`].filter(Boolean);
+    const got = [b.hay && `${fmt(b.hay)} tons of hay`, b.food && `${fmt(b.food)} rations of food`, b.cattle && plural(b.cattle, 'head of cattle', 'head of cattle'), b.sheep && plural(b.sheep, 'sheep', 'sheep'), b.horses && plural(b.horses, 'horse', 'horses'), b.land && `${plural(b.land, 'parcel', 'parcels')} of land`].filter(Boolean);
     if (got.length) rep.farm.push(`You bought ${got.join(', ')}.`);
     for (const n of r.notes) rep.farm.push(n);
     if (r.hungerFrac > 0.01) rep.household.push(`There was not enough to eat: the house went short by ${Math.round(r.hungerFrac * 100)} in every hundred.`);
@@ -358,6 +380,7 @@
     }
 
     // ---- people
+    sellThralls(state, r.sold.thralls, rep);
     buyThralls(state, rng, year, b.thralls, rep);
     hireServants(state, rng, year, b.servants, rep);
     if (r.wagesShort > 0.5) dismissUnpaid(state, r.wagesShort, rep);
