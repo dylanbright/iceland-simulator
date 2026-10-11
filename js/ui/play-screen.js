@@ -293,11 +293,11 @@
         h('p', { class: 'out-verdict' }, verdictHay(o.hayHave, n)),
         h('p', { class: 'out-label' }, 'Food this season', h('b', null, ` need ${t1(o.rationNeed)}, have ${t1(o.rationHave)}`)),
         h('p', { class: 'out-verdict' }, foodGap >= 0 ? (foodGap > o.rationNeed * 0.25 ? 'The house will eat well.' : 'Just enough. A bad turn of luck would leave you short.') : 'Not enough. The house will go hungry.'),
-        S === 'summer' ? [
+        ...(S === 'summer' ? [
           h('p', { class: 'out-label' }, 'Meat and food laid up for winter', h('b', null, ` have ${t1(o.res.farm.provisions)}, house needs about ${t1(o.rationNeed)}`)),
           h('p', { class: 'out-verdict' }, o.res.farm.provisions >= o.rationNeed ? 'Winter stores are covered. There is no need to slaughter more.'
             : o.res.farm.provisions >= o.rationNeed * 0.8 ? 'Nearly enough. Winter fishing and dairy should make up the rest.'
-              : (plan.cull.cattle || plan.cull.sheep) || plan.buy.food ? 'Short for the winter. Slaughter more, or buy food, or plan to fish.' : 'Short for the winter. Slaughter some stock, buy food, or put more hands on the fishing.')] : null,
+              : (plan.cull.cattle || plan.cull.sheep) || plan.buy.food ? 'Short for the winter. Slaughter more, or buy food, or plan to fish.' : 'Short for the winter. Slaughter some stock, buy food, or put more hands on the fishing.')] : []),
         h('p', { class: 'out-label' }, 'Cash', h('b', null, ` ${fmt(o.cashStart)} → ${fmt(o.cashEnd)} ells`)),
         ...(notes.length ? [h('ul', { class: 'out-notes' }, notes.map((x) => h('li', null, x)))] : []),
         h('p', { class: 'out-foot' }, 'These are expectations for an average season. The weather will not be average.'));
