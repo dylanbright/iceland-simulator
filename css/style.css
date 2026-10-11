@@ -328,3 +328,6 @@ button, input { font: inherit; color: inherit; }
 .nbr .who { font-weight: 600; }
 .nbr .role, .nbr-stage { color: var(--stone); font-style: italic; }
 .nbr-feud .nbr-stage { color: var(--basalt); }
+
+.raid-warn { margin: 0.6rem 0; padding: 0.55rem 0.8rem; border-left: 3px solid var(--stone); background: color-mix(in srgb, var(--stone) 12%, transparent); }
+.plan-raid > .raid-warn { margin-right: 8rem; }

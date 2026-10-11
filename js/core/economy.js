@@ -500,7 +500,7 @@
     // first); the rest of the gap is bought as food if there is cash to spare, and only a real shortage forces a bigger cull.
     if (S === 'summer') {
       o = outlook(state, plan);
-      let gapStore = o.rationNeed * 1.1 - o.res.farm.provisions;
+      let gapStore = o.rationNeed * 0.9 - o.res.farm.provisions;
       const per = C.SLAUGHTER.sheep * C.STORE_KEEP;
       const flock = f.sheep, sheepLeft = () => f.sheep - plan.sell.sheep - plan.cull.sheep;
       const softCap = Math.max(2, Math.ceil(flock / 7)), hardCap = Math.max(4, Math.ceil(flock * 0.3));

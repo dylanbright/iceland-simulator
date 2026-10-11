@@ -249,7 +249,7 @@
           ...R.ORDER.map((id) => {
             const d = R.DEST[id], pct = Math.round(R.deathEstimate(state, id, true) * 100);
             const fav = state.favors && state.favors[id];
-            return opt(id, d.name, `${d.winter ? 'Away until next summer. ' : 'Home by autumn. '}About ${pct} in 100 of not returning. Plunder ${lootWord(d.loot)}.${fav ? ' Its king favors you.' : ''}`, !afford);
+            return opt(id, d.name, `${d.winter ? 'Away until next summer. ' : 'Home by autumn. '}About ${pct} in 100 of not returning. Plunder ${lootWord(d.loot)}.${fav ? ' Its king favors you.' : ''}${afford ? '' : ' You cannot afford the voyage yet.'}`, !afford);
           }));
         depBox.replaceChildren(...(plan.raid ? [
           h('h3', null, 'Who runs the farm while you are gone?'),
@@ -262,7 +262,9 @@
       };
       raidSec = h('section', { class: 'plan-sec plan-raid' },
         h('h2', null, 'A raid'),
-        h('p', { class: 'sec-note' }, `Sail this summer and bring home plunder, captives and, perhaps, a foreign king's favor. You are not here to work the farm, and whether you come back rests on your Strength (${Math.round(head.attrs.strength)}). Further coasts pay more and kill more. ${state.ship ? 'You own a ship, so you only pay for the crew and outfitting' : `A ship costs ${fmt(R.SHIP_COST)} ells, then the crew and outfitting`}: ${fmt(total)} ells in all.${afford ? '' : ` You have ${fmt(E.cashOf(f))}.`}`),
+        h('p', { class: 'sec-note' }, `Sail this summer and bring home plunder, captives and, perhaps, a foreign king's favor. You are not here to work the farm, and whether you come back rests on your Strength (${Math.round(head.attrs.strength)}). Further coasts pay more and kill more. ${state.ship ? 'You own a ship, so you only pay for the crew and outfitting' : `A ship costs ${fmt(R.SHIP_COST)} ells, then the crew and outfitting`}: ${fmt(total)} ells in all.`),
+        afford ? null : h('p', { class: 'raid-warn' }, h('b', null, state.ship ? 'You cannot afford to fit out a crew yet. ' : 'You cannot afford a ship yet. '),
+          `You need ${fmt(total)} ells in cash and have ${fmt(E.cashOf(f))}, ${fmt(total - E.cashOf(f))} short. Sell stock or save for a season, then come back.`),
         destBox, depBox);
       draw();
     }
@@ -291,6 +293,11 @@
         h('p', { class: 'out-verdict' }, verdictHay(o.hayHave, n)),
         h('p', { class: 'out-label' }, 'Food this season', h('b', null, ` need ${t1(o.rationNeed)}, have ${t1(o.rationHave)}`)),
         h('p', { class: 'out-verdict' }, foodGap >= 0 ? (foodGap > o.rationNeed * 0.25 ? 'The house will eat well.' : 'Just enough. A bad turn of luck would leave you short.') : 'Not enough. The house will go hungry.'),
+        S === 'summer' ? [
+          h('p', { class: 'out-label' }, 'Meat and food laid up for winter', h('b', null, ` have ${t1(o.res.farm.provisions)}, house needs about ${t1(o.rationNeed)}`)),
+          h('p', { class: 'out-verdict' }, o.res.farm.provisions >= o.rationNeed ? 'Winter stores are covered. There is no need to slaughter more.'
+            : o.res.farm.provisions >= o.rationNeed * 0.8 ? 'Nearly enough. Winter fishing and dairy should make up the rest.'
+              : (plan.cull.cattle || plan.cull.sheep) || plan.buy.food ? 'Short for the winter. Slaughter more, or buy food, or plan to fish.' : 'Short for the winter. Slaughter some stock, buy food, or put more hands on the fishing.')] : null,
         h('p', { class: 'out-label' }, 'Cash', h('b', null, ` ${fmt(o.cashStart)} → ${fmt(o.cashEnd)} ells`)),
         ...(notes.length ? [h('ul', { class: 'out-notes' }, notes.map((x) => h('li', null, x)))] : []),
         h('p', { class: 'out-foot' }, 'These are expectations for an average season. The weather will not be average.'));
