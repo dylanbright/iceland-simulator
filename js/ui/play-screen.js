@@ -34,7 +34,7 @@
     dlg.addEventListener('click', (e) => { if (e.target === dlg) close(); });
     const head = state.people[state.headId];
     dlg.append(
-      h('h2', null, 'Your neighbors'),
+      h('h2', null, 'Nábúar: your neighbors'),
       h('p', { class: 'sec-note' }, `How the houses around you feel about yours. A man of high Honor is usually well thought of, but a jealous man likes you less the higher you rise, and a quarrelsome one picks fights with anyone. Houses that dislike you are the ones who bring border claims, suits and, in the end, violence. Your Honor is ${Math.round(head.attrs.honor)}.`),
       h('ul', { class: 'nbr-list' }, dir.map((n) => {
         const cls = n.rel <= -50 ? 'bad2' : n.rel <= -15 ? 'bad' : n.rel >= 40 ? 'good2' : n.rel >= 15 ? 'good' : 'mid';
@@ -50,18 +50,18 @@
     return dlg;
   }
   function neighborsButton(state) {
-    return h('button', { class: 'btn', type: 'button', onclick: () => {
+    return h('button', { class: 'btn nbr-btn', type: 'button', title: 'Neighbors', onclick: () => {
       const d = neighborsDialog(state); document.body.appendChild(d);
       if (d.showModal) d.showModal(); else d.setAttribute('open', '');
       d.scrollTop = 0;
-    } }, 'Neighbors');
+    } }, 'nábúar');
   }
 
   function bar(state, ctl, right, label) {
     const info = IS.Game.turnInfo(state);
     return h('header', { class: 'bar' },
       h('span', { class: 'bar-title' }, 'Iceland Simulator'),
-      h('div', { class: 'bar-tools' }, h('span', { class: 'bar-when' }, label || info.label), state.families && IS.Feud ? neighborsButton(state) : null, right || null));
+      h('div', { class: 'bar-tools' }, h('span', { class: 'bar-when' }, label || info.label), right || null));
   }
 
   function abandonButton(ctl) {
@@ -125,7 +125,8 @@
     const neighbors = nb.length ? h('section', null, h('h2', null, 'Your neighbors'),
       h('ul', { class: 'nbrs' }, nb.map((n) => h('li', { class: n.feud ? 'nbr nbr-feud' : 'nbr' },
         h('span', { class: 'who' }, n.farm), ' ', h('span', { class: 'role' }, n.word), n.feud ? h('span', { class: 'nbr-stage' }, ' (' + n.feud + ')') : null)))) : null;
-    return h('aside', { class: 'ledger', 'aria-label': 'Your farm and household' }, extraTop || null, standing, farm, stableSec, household, neighbors, hooks);
+    return h('aside', { class: 'ledger', 'aria-label': 'Your farm and household' }, extraTop || null, standing, farm, stableSec, household, neighbors, hooks,
+      state.families && IS.Feud && !extraTop ? h('div', { class: 'ledger-foot' }, neighborsButton(state)) : null);
   }
 
   /* ---------- planning ---------- */
@@ -345,7 +346,7 @@
         h('span', { class: 'chip' }, 'Food ', h('b', null, foodOk ? 'enough' : 'short')),
         h('span', { class: 'chip' }, 'Cash at season’s end ', h('b', null, fmt(o.cashEnd))));
     });
-    const dock = h('div', { class: 'dock' }, h('div', { class: 'dock-inner' }, dockChips,
+    const dock = h('div', { class: 'dock' }, h('div', { class: 'dock-inner' }, dockChips, state.families && IS.Feud ? neighborsButton(state) : null,
       h('button', { class: 'btn btn-primary', type: 'button', onclick: () => ctl.resolve(plan) }, S === 'summer' ? 'Carry out the summer' : 'Carry out the winter')));
 
     /* --- assemble --- */
