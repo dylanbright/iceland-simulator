@@ -296,7 +296,7 @@
         h('h2', null, 'A raid'),
         h('p', { class: 'sec-note' }, `Sail this summer and bring home plunder, captives and, perhaps, a foreign king's favor. You are not here to work the farm, and whether you come back rests on your Strength (${Math.round(head.attrs.strength)}). Further coasts pay more and kill more. ${state.ship ? 'You own a ship, so you only pay for the crew and outfitting' : `A ship costs ${fmt(R.SHIP_COST)} ells, then the crew and outfitting`}: ${fmt(total)} ells in all.`),
         afford ? null : h('p', { class: 'raid-warn' }, h('b', null, state.ship ? 'You cannot afford to fit out a crew yet. ' : 'You cannot afford a ship yet. '),
-          `You need ${fmt(total)} ells in cash and have ${fmt(E.cashOf(f))}, ${fmt(total - E.cashOf(f))} short. Sell stock or save for a season, then come back.`),
+          `The ship and crew are paid for before anything else this summer, from the ${fmt(E.cashOf(f))} ells you hold now. You need ${fmt(total)}, so you are ${fmt(total - E.cashOf(f))} short. The cash figure at the bottom of the page is what you expect to have at the end of the season, after this plan's sales and spending, so it does not count. Save for a season, then come back.`),
         destBox, depBox);
       draw();
     }
@@ -343,7 +343,7 @@
       dockChips.replaceChildren(
         h('span', { class: 'chip' }, 'Hay ', h('b', null, `${t1(o.hayHave)} / ${t1(n.normal)} t`)),
         h('span', { class: 'chip' }, 'Food ', h('b', null, foodOk ? 'enough' : 'short')),
-        h('span', { class: 'chip' }, 'Cash ', h('b', null, fmt(o.cashEnd))));
+        h('span', { class: 'chip' }, 'Cash at season’s end ', h('b', null, fmt(o.cashEnd))));
     });
     const dock = h('div', { class: 'dock' }, h('div', { class: 'dock-inner' }, dockChips,
       h('button', { class: 'btn btn-primary', type: 'button', onclick: () => ctl.resolve(plan) }, S === 'summer' ? 'Carry out the summer' : 'Carry out the winter')));
