@@ -38,3 +38,6 @@ The game is tuned to be noticeably hard: Thing dues, spoilage, harsher winters, 
 
 ## Markets
 Prices vary each season. Every animal or thrall you sell pushes the price down and every one you buy pushes it up, so a big sale of sheep fetches less per head; the planning screen shows the total for the lot. The glut lingers into the next season at half strength. You can buy horses and sell thralls (the most resentful go first). `node test/market.js` checks this.
+
+## Horses
+Each horse has a name, a Speed (horse-races) and a Strength (horse-fights), listed under "Your horses". Foals and purchases take after your herd a little; losses fall mostly on the weak, and sold horses are the poorest first. Winners improve slightly.

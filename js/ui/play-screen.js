@@ -81,6 +81,11 @@
         h('dt', null, 'Wool'), h('dd', null, `${fmt(f.wool)} ells unwoven`),
         h('dt', null, 'Buildings'), h('dd', null, conditionWord(f.condition)),
         h('dt', null, 'Worth'), h('dd', null, `${fmt(f.wealth)} ells`)));
+    const st = state.stable || [];
+    const stableSec = f.horses > 0 && st.length ? h('section', null, h('h2', null, 'Your horses'),
+      h('ul', { class: 'nbrs stable' }, st.slice().sort((a, b) => IS.Stable.worth(b) - IS.Stable.worth(a)).map((x) => h('li', { class: 'nbr' },
+        h('span', { class: 'who' }, x.name), ' ', h('span', { class: 'role' }, `Speed ${x.speed}, Strength ${x.strength}`),
+        x.raceWins || x.wins ? h('span', { class: 'nbr-stage' }, ` (${[x.raceWins && x.raceWins + ' race' + (x.raceWins > 1 ? 's' : ''), x.wins && x.wins + ' fight' + (x.wins > 1 ? 's' : '')].filter(Boolean).join(', ')} won)`) : null)))) : null;
     const household = h('section', null, h('h2', null, 'Your household'), peopleList(state));
     const hooks = state.hooks.length ? h('section', null, h('h2', null, 'What follows you'),
       h('ul', null, state.hooks.map((x) => h('li', { class: 'hook' }, x.text)))) : null;
@@ -88,7 +93,7 @@
     const neighbors = nb.length ? h('section', null, h('h2', null, 'Your neighbors'),
       h('ul', { class: 'nbrs' }, nb.map((n) => h('li', { class: n.feud ? 'nbr nbr-feud' : 'nbr' },
         h('span', { class: 'who' }, n.farm), ' ', h('span', { class: 'role' }, n.word), n.feud ? h('span', { class: 'nbr-stage' }, ' (' + n.feud + ')') : null)))) : null;
-    return h('aside', { class: 'ledger', 'aria-label': 'Your farm and household' }, extraTop || null, standing, farm, household, neighbors, hooks);
+    return h('aside', { class: 'ledger', 'aria-label': 'Your farm and household' }, extraTop || null, standing, farm, stableSec, household, neighbors, hooks);
   }
 
   /* ---------- planning ---------- */

@@ -21,6 +21,7 @@ function check(s, i, t) {
     if (all.includes(s.headId) || s.people[s.headId].deathYear != null) fail('bad head', i, t);
     for (const id of all) if (!s.people[id] || s.people[id].deathYear != null) fail('dead or missing member ' + id, i, t);
   }
+  if (s.mode !== 'over' && s.mode !== 'incident' && (s.stable || []).length !== f.horses) fail('stable ' + (s.stable || []).length + ' vs horses ' + f.horses, i, t);
   const hon = s.people[s.headId].attrs.honor;
   if (!(hon >= 1 && hon <= 100)) fail('honor ' + hon, i, t);
 }

@@ -125,39 +125,6 @@
           run: () => { c.goodwill(c.p.farm, -3); c.honor(-0.3, `You missed a wedding at ${c.p.farm}`); return 'Hay needed making. They said they understood.'; } },
       ] },
 
-    { id: 'horse_fight', seasons: ['summer'], w: 2.2,
-      needs: (c) => (c.state.farm.horses >= 1 ? {} : null),
-      title: () => 'A horse-fight in the valley',
-      body: (c) => {
-        const st = c.state.stallion;
-        return ['The district is meeting for horse-fighting, with ale and wagers, and men are asking whose stallion will go into the ring.',
-          st ? `Your stallion ${st.name} has won ${st.wins} and lost ${st.losses}.` : 'Your best horse has not been tried before.'];
-      },
-      options: (c) => {
-        const f = c.state.farm;
-        const fight = (stake) => () => {
-          let st = c.state.stallion;
-          if (!st) st = c.state.stallion = { name: c.rng.pick(['Blesi', 'Sleipnir’s cousin', 'Svaði', 'Fáfnir', 'Hrímfaxi', 'Gulltoppr', 'Skinfaxi', 'Falki']), wins: 0, losses: 0 };
-          const p = Math.max(0.2, Math.min(0.8, 0.38 + Math.min(0.1, f.horses * 0.02) + Math.min(0.12, st.wins * 0.03) - Math.min(0.1, st.losses * 0.02)));
-          if (stake) c.pay(stake);
-          if (c.rng.chance(p)) {
-            st.wins++;
-            c.honor(st.wins >= 3 ? 2.6 : 2.2, `${st.name} won the horse-fight`);
-            if (stake) c.earn(stake * 2.2);
-            return `${st.name} came out of the ring bloodied and standing. ${st.wins >= 3 ? 'His name is known across the district. ' : ''}${stake ? `You won ${Math.round(stake * 2.2)} ells on him. ` : ''}People bought you ale.`;
-          }
-          st.losses++;
-          c.honor(-0.8, `${st.name} lost the horse-fight`);
-          if (c.rng.chance(0.2)) { f.horses = Math.max(0, f.horses - 1); const n = st.name; c.state.stallion = null; return `${n} lost, and had to be put down after.${stake ? ` The ${stake} ells went with him.` : ''}`; }
-          return `${st.name} lost, and you drank less than the winner did.${stake ? ` The ${stake} ells are gone.` : ''}`;
-        };
-        return [
-          { id: 'enter', label: 'Enter your stallion', desc: 'Honor +2.2 if he wins, −0.8 if he loses, and he may be killed. A winner is better next time.', run: fight(0) },
-          { id: 'wager', label: 'Enter him and wager on him', cost: 40, desc: `${ells(40)} staked. If he wins you take back about ${ells(88)}. If not, the stake is gone.`, run: fight(40) },
-          { id: 'stay', label: 'Watch from the edge', desc: 'No risk.', run: () => 'You watched with a cup in your hand and said little.' },
-        ];
-      } },
-
     { id: 'feud_flare', w: 0, needs: () => null,
       title: (c) => `${c.p.farm} again`,
       body: (c) => [`The quarrel with ${c.p.farm} is not finished: ${c.p.why}. ${c.p.head}'s men were seen at the edge of your land, and they were not there for the view.`],

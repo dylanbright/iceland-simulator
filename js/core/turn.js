@@ -28,6 +28,7 @@
 
   /* ---------- the year's character ---------- */
   function prepare(state, rng) {
+    IS.Stable.sync(state, rng);
     const S = E.seasonOf(state);
     const env = state.env || {};
     if (S === 'summer' || env.omen == null) {
@@ -381,6 +382,7 @@
 
     // ---- people
     sellThralls(state, r.sold.thralls, rep);
+    if (r.sold.horses) IS.Stable.sell(state, r.sold.horses);
     buyThralls(state, rng, year, b.thralls, rep);
     hireServants(state, rng, year, b.servants, rep);
     if (r.wagesShort > 0.5) dismissUnpaid(state, r.wagesShort, rep);
