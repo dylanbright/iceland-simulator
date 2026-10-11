@@ -65,7 +65,11 @@
       neighbor() {
         const pool = neighbors(state, wife);
         if (!pool.length) return null;
-        const f = rng.pick(pool);
+        // houses that dislike you are the ones who turn up with quarrels; friends seldom do
+        const wts = pool.map((x) => { const r = (state.relations && state.relations[x.farm]) || 0; return r < 0 ? 1 + (-r) / 12 : r > 20 ? 0.5 : 1; });
+        let pick = rng.float(0, wts.reduce((a, b) => a + b, 0)), k = 0;
+        while (k < pool.length - 1 && pick > wts[k]) { pick -= wts[k]; k++; }
+        const f = pool[k];
         return { farm: f.farm, head: f.head.first, nwife: N.female(rng).first };
       },
       addGrudge(target, reason, intensity) {
@@ -228,6 +232,7 @@
     state.pending = state.pending || [];
     state.relations = state.relations || {};
     state.feuds = state.feuds || [];
+    if (IS.Stable) IS.Stable.sync(state, rng);
     rep.incidents = rep.incidents || [];
     // wintering abroad: nobody is home to answer anything
     if (state.expedition && state.expedition.untilTurn > state.turn + 1) return;
@@ -244,6 +249,7 @@
     }
     if (IS.Feud) IS.Feud.tick(state, rng, rep, makeCtx(state, rng, null, {}, []));
     rollEvents(state, rng, rep.season);
+    if (IS.Stable) IS.Stable.sync(state, rng);
   }
 
   /* ---------- presenting and answering ---------- */
@@ -314,6 +320,7 @@
     if (opt.cost && E.cashOf(state.farm) < opt.cost) return null;
     const text = opt.run();
     if (head0.deathYear != null) IS.Turn.headDied(state, rng);
+    if (IS.Stable) IS.Stable.sync(state, rng);
     state.report.incidents = state.report.incidents || [];
     state.report.incidents.push({ title: def.title(ctx), wife: wife ? wife.first : null, text: [text, ...log].join(' ') });
     state.pending.shift();

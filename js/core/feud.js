@@ -34,6 +34,28 @@
     return 'a bitter enemy';
   }
 
+  /* ---------- the neighbours' own natures ---------- */
+  const NATURES = {
+    jealous: { word: 'jealous', note: 'cannot stand a man who rises above him' },
+    quarrelsome: { word: 'quarrelsome', note: 'always ready for a quarrel' },
+    peaceable: { word: 'peaceable', note: 'wants a quiet life' },
+    fair: { word: 'even-tempered', note: 'takes a man as he finds him' },
+  };
+  const hash = (str) => { let x = 2166136261; for (let i = 0; i < str.length; i++) { x ^= str.charCodeAt(i); x = Math.imul(x, 16777619); } return (x >>> 0) / 4294967296; };
+  /** Fixed for each house (from the game seed and the farm's name), so it needs no saved state. */
+  function natureOf(state, farm) {
+    const u = hash(String(state.seed) + '|' + farm);
+    return u < 0.2 ? 'jealous' : u < 0.4 ? 'quarrelsome' : u < 0.6 ? 'peaceable' : 'fair';
+  }
+  /** Where a house's feelings settle if nothing else happens: the more honor you have, the more they like you, unless they are jealous. */
+  function targetOf(state, farm, honor) {
+    const n = natureOf(state, farm);
+    if (n === 'jealous') return clamp(-0.9 * (honor - 30), -65, 8);
+    const base = (honor - 45) * 0.5;
+    return clamp(base + (n === 'peaceable' ? 6 : n === 'quarrelsome' ? -9 : 0), -30, 30);
+  }
+  const houses = (state) => Object.values(state.families || {}).filter((f) => f.head && f.farm !== state.farm.name);
+
   const get = (state, farm) => (state.feuds || []).find((f) => f.farm === farm) || null;
   const rel = (state, farm) => (state.relations && state.relations[farm]) || 0;
   const bump = (state, farm, d) => { state.relations[farm] = clamp(rel(state, farm) + d, -100, 100); };
@@ -94,6 +116,16 @@
       const v = state.relations[k] * 0.97;
       if (Math.abs(v) < 1) delete state.relations[k]; else state.relations[k] = r1(v);
     }
+    // how the house thinks of your standing: a slow pull toward what your Honor deserves (envy turns it upside down)
+    {
+      const honor = state.people[state.headId].attrs.honor;
+      state.knownNature = state.knownNature || {};
+      for (const fam of houses(state)) {
+        const cur = rel(state, fam.farm), t = targetOf(state, fam.farm, honor);
+        state.relations[fam.farm] = clamp(r1(cur + (t - cur) * 0.07), -100, 100);
+        if (Math.abs(state.relations[fam.farm]) >= 20 || get(state, fam.farm)) state.knownNature[fam.farm] = true;
+      }
+    }
     // envy and friction: a house that has pulled far ahead is resented, one that lags is easy
     const pool = Object.values(state.families || {}).filter((f) => f.head && f.farm !== state.farm.name);
     if (pool.length && rng.chance(0.3)) {
@@ -113,6 +145,16 @@
         if (f.stage > 1) { f.stage--; f.quiet = 0; } else if (!f.owedThem) end(state, f.farm);
       } else if (f.stage >= 3 && f.quiet >= 10) { f.stage--; f.quiet = 0; }
     }
+    // houses that dislike you pick quarrels even before a feud: border claims and suits
+    if (!state.pending.some((p) => p.kind === 'event' && /^(feud_|boundary|neighbor_suit)/.test(p.id)) && !state.expedition) {
+      const sour = houses(state).filter((fam) => rel(state, fam.farm) <= -20 && !get(state, fam.farm));
+      if (sour.length) {
+        const fam = sour.slice().sort((a, b) => rel(state, a.farm) - rel(state, b.farm))[0];
+        const n = natureOf(state, fam.farm);
+        const p = clamp((-rel(state, fam.farm) - 15) / 250, 0, 0.3) * (n === 'quarrelsome' || n === 'jealous' ? 1.4 : n === 'peaceable' ? 0.5 : 1);
+        if (rng.chance(p)) state.pending.push({ id: rng.chance(0.65) ? 'boundary' : 'neighbor_suit', wifeId: null, kind: 'event', params: { farm: fam.farm, head: fam.head.first, nwife: '' } });
+      }
+    }
     if (!state.feuds.length) return;
     if (state.pending.some((p) => p.kind === 'event' && /^feud_/.test(p.id))) return;
 
@@ -121,7 +163,8 @@
     const fam = state.families && state.families[f.farm];
     if (!fam || !fam.head) return;
     const away = state.expedition ? 1.4 : 1;
-    const p = clamp(0.1 + (-rel(state, f.farm) - 40) / 220 + (f.stage - 1) * 0.03, 0.06, 0.45) * away;
+    const nat = natureOf(state, f.farm);
+    const p = clamp(0.1 + (-rel(state, f.farm) - 40) / 220 + (f.stage - 1) * 0.03, 0.06, 0.45) * away * (nat === 'quarrelsome' ? 1.3 : nat === 'peaceable' ? 0.7 : 1);
     if (!rng.chance(p)) return;
     f.quiet = 0;
     const head = fam.head.first;
@@ -212,6 +255,22 @@
     thrall, kin, burning,
   ];
 
+  /** Every neighbouring house, for the neighbours screen. A house's nature shows once you have seen how it feels about you. */
+  function directory(state) {
+    const honor = state.people[state.headId].attrs.honor;
+    const known = state.knownNature || {};
+    return houses(state).map((fam) => {
+      const r = rel(state, fam.farm), fd = get(state, fam.farm), n = natureOf(state, fam.farm);
+      const shown = !!known[fam.farm];
+      let why = null;
+      if (shown && n === 'jealous' && honor > 40) why = 'Your standing eats at him.';
+      else if (shown && n !== 'jealous' && honor >= 65 && r > 0) why = 'He thinks well of a man of your standing.';
+      else if (shown && n !== 'jealous' && honor < 30 && r < 0) why = 'He has little respect for a man of your name.';
+      return { farm: fam.farm, head: fam.head.first, tier: fam.tier, goði: !!fam.goði, rel: Math.round(r), word: word(r) || 'on neutral terms',
+        feud: fd ? STAGES[fd.stage || 1] : null, owed: fd ? Math.round(fd.owedThem || 0) : 0, nature: shown ? NATURES[n].word : null, natureNote: shown ? NATURES[n].note : null, why };
+    }).sort((a, b) => a.rel - b.rel);
+  }
+
   /* ---------- for the ledger ---------- */
   function summary(state) {
     const out = [];
@@ -234,5 +293,5 @@
     }
   }
 
-  IS.Feud = { HOSTILE, STAGES, word, get, rel, bump, ensure, escalate, end, whyOf, men, fightOdds, lawChance, wergild, oddsWord, tick, summary, seed, bloodshed, theyFall };
+  IS.Feud = { HOSTILE, STAGES, word, get, rel, bump, ensure, escalate, end, whyOf, men, fightOdds, lawChance, wergild, oddsWord, tick, summary, seed, bloodshed, theyFall, natureOf, directory, NATURES };
 })();

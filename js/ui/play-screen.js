@@ -25,11 +25,43 @@
   const nameOf = (p) => (p.kind === 'thrall' ? p.first : N.fullName(p));
 
   /* ---------- shared pieces ---------- */
+  function neighborsDialog(state) {
+    const dir = IS.Feud.directory(state);
+    const tier = (t) => (IS.Start.TIER_LABEL && IS.Start.TIER_LABEL[t]) || 'a farm';
+    const dlg = h('dialog', { class: 'nbr-dialog', 'aria-label': 'Your neighbors' });
+    const close = () => { try { dlg.close(); } catch (e) { /* already closed */ } dlg.remove(); };
+    dlg.addEventListener('close', () => dlg.remove());
+    dlg.addEventListener('click', (e) => { if (e.target === dlg) close(); });
+    const head = state.people[state.headId];
+    dlg.append(
+      h('h2', null, 'Your neighbors'),
+      h('p', { class: 'sec-note' }, `How the houses around you feel about yours. A man of high Honor is usually well thought of, but a jealous man likes you less the higher you rise, and a quarrelsome one picks fights with anyone. Houses that dislike you are the ones who bring border claims, suits and, in the end, violence. Your Honor is ${Math.round(head.attrs.honor)}.`),
+      h('ul', { class: 'nbr-list' }, dir.map((n) => {
+        const cls = n.rel <= -50 ? 'bad2' : n.rel <= -15 ? 'bad' : n.rel >= 40 ? 'good2' : n.rel >= 15 ? 'good' : 'mid';
+        const pos = ((n.rel + 100) / 200) * 100;
+        return h('li', { class: 'nbr-item ' + cls },
+          h('div', { class: 'nbr-top' }, h('b', null, `${n.head} of ${n.farm}`), h('span', { class: 'nbr-word' }, n.word)),
+          h('div', { class: 'nbr-meter', role: 'img', 'aria-label': `Feeling toward you: ${n.word}` }, h('span', { style: { left: pos + '%' } })),
+          h('div', { class: 'nbr-meta' }, [`${tier(n.tier)}`, n.goði ? 'a goði' : null, n.nature ? n.nature : null].filter(Boolean).join(', ') + (n.nature ? '' : '; you do not know his temper yet')),
+          n.why ? h('div', { class: 'nbr-meta' }, n.why) : null,
+          n.feud ? h('div', { class: 'nbr-feud-line' }, `Feud: ${n.feud}${n.owed ? `. He may claim about ${fmt(n.owed)} ells from you` : ''}.`) : null);
+      })),
+      h('div', { class: 'nbr-actions' }, h('button', { class: 'btn', type: 'button', onclick: close }, 'Close')));
+    return dlg;
+  }
+  function neighborsButton(state) {
+    return h('button', { class: 'btn', type: 'button', onclick: () => {
+      const d = neighborsDialog(state); document.body.appendChild(d);
+      if (d.showModal) d.showModal(); else d.setAttribute('open', '');
+      d.scrollTop = 0;
+    } }, 'Neighbors');
+  }
+
   function bar(state, ctl, right, label) {
     const info = IS.Game.turnInfo(state);
     return h('header', { class: 'bar' },
       h('span', { class: 'bar-title' }, 'Iceland Simulator'),
-      h('div', { class: 'bar-tools' }, h('span', { class: 'bar-when' }, label || info.label), right || null));
+      h('div', { class: 'bar-tools' }, h('span', { class: 'bar-when' }, label || info.label), state.families && IS.Feud ? neighborsButton(state) : null, right || null));
   }
 
   function abandonButton(ctl) {

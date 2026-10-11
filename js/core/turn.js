@@ -413,6 +413,7 @@
     // ---- the wives: moods, housekeeping, and the incidents that wait for an answer
     state.pending = [];
     if (carryOn && IS.Household) IS.Household.afterSeason(state, rng, rep, res);
+    IS.Stable.sync(state, rng);
     state.pendingTotal = state.pending.length;
 
     const f = state.farm;

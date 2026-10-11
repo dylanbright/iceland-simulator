@@ -331,3 +331,17 @@ button, input { font: inherit; color: inherit; }
 
 .raid-warn { margin: 0.6rem 0; padding: 0.55rem 0.8rem; border-left: 3px solid var(--stone); background: color-mix(in srgb, var(--stone) 12%, transparent); }
 .plan-raid > .raid-warn { margin-right: 8rem; }
+
+/* neighbors screen */
+.nbr-dialog { max-width: 40rem; width: calc(100% - 2rem); max-height: 85vh; overflow: auto; padding: 1.2rem 1.4rem; border: 1px solid var(--stone); border-radius: 6px; background: var(--fog); color: var(--basalt); }
+.nbr-dialog::backdrop { background: rgba(0, 0, 0, 0.6); }
+.nbr-list { list-style: none; margin: 1rem 0; padding: 0; display: grid; gap: 0.9rem; }
+.nbr-top { display: flex; justify-content: space-between; gap: 1rem; align-items: baseline; }
+.nbr-word { font-style: italic; color: var(--stone); }
+.nbr-meter { position: relative; height: 4px; margin: 0.4rem 0; background: linear-gradient(90deg, var(--stone), color-mix(in srgb, var(--stone) 25%, transparent) 50%, var(--stone)); border-radius: 2px; }
+.nbr-meter span { position: absolute; top: -4px; width: 12px; height: 12px; margin-left: -6px; border-radius: 50%; background: currentColor; }
+.nbr-meter::before { content: ''; position: absolute; left: 50%; top: -3px; width: 1px; height: 10px; background: var(--stone); }
+.nbr-meta { font-size: 0.92em; color: var(--stone); }
+.nbr-feud-line { margin-top: 0.2rem; }
+.nbr-item.bad2 .nbr-word, .nbr-item.bad .nbr-word { color: inherit; font-weight: 600; }
+.nbr-actions { text-align: right; }
