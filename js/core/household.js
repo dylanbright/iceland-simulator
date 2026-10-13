@@ -236,6 +236,15 @@
     rep.incidents = rep.incidents || [];
     // wintering abroad: nobody is home to answer anything
     if (state.expedition && state.expedition.untilTurn > state.turn + 1) return;
+    if (IS.Raid) {
+      const v = IS.Raid.offerVow(state);
+      if (v) state.pending.push(v);
+      // an oath left unfulfilled for fifteen years is forgotten, but not by everyone
+      if (state.vow && state.vow.status === 'sworn' && state.turn - state.vow.turn > 30) {
+        rep.household.push(`The years have gone by and you never sailed against ${state.vow.killer}. Few still remember the oath.`);
+        state.hooks = (state.hooks || []).filter((h) => h.type !== 'raid_vow'); state.vow = null;
+      }
+    }
     if (state.household.wives.length) {
       updateHappiness(state, rng, rep, res);
       wifeFlow(state, rep);
@@ -319,7 +328,7 @@
     if (!opt) return null;
     if (opt.cost && E.cashOf(state.farm) < opt.cost) return null;
     const text = opt.run();
-    if (head0.deathYear != null) IS.Turn.headDied(state, rng);
+    if (head0.deathYear != null) { IS.Turn.headDied(state, rng); const v = IS.Raid && IS.Raid.offerVow(state); if (v) state.pending.push(v); }
     if (IS.Stable) IS.Stable.sync(state, rng);
     state.report.incidents = state.report.incidents || [];
     state.report.incidents.push({ title: def.title(ctx), wife: wife ? wife.first : null, text: [text, ...log].join(' ') });

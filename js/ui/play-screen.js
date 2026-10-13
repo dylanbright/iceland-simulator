@@ -301,7 +301,7 @@
           ...R.ORDER.map((id) => {
             const d = R.DEST[id], pct = Math.round(R.deathEstimate(state, id, true) * 100);
             const fav = state.favors && state.favors[id];
-            return opt(id, d.name, `${d.winter ? 'Away until next summer. ' : 'Home by autumn. '}About ${pct} in 100 of not returning. Plunder ${lootWord(d.loot)}.${fav ? ' Its king favors you.' : ''}${afford ? '' : ' You cannot afford the voyage yet.'}`, !afford);
+            return opt(id, d.name, `${d.winter ? 'Away until next summer. ' : 'Home by autumn. '}About ${pct} in 100 of not returning. Plunder ${lootWord(d.loot)}.${fav ? ' Its king favors you.' : ''}${state.vow && state.vow.status === 'sworn' && state.vow.dest === id ? ` Your oath to avenge ${state.vow.fallen} draws you here.` : ''}${afford ? '' : ' You cannot afford the voyage yet.'}`, !afford);
           }));
         depBox.replaceChildren(...(plan.raid ? [
           h('h3', null, 'Who runs the farm while you are gone?'),

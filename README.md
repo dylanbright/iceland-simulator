@@ -45,3 +45,6 @@ Each horse has a name, a Speed (horse-races) and a Strength (horse-fights), list
 ## Neighbor temperament
 Every neighboring house has a fixed nature: jealous, quarrelsome, peaceable or even-tempered. Feelings drift slowly toward what your Honor deserves, except that jealous houses like you less the higher your Honor climbs. Houses that dislike you bring border claims and suits more often, and are picked first by other neighbor events. The "Neighbors" button (top bar) lists them all with how they feel; a house's temper is shown once you have seen how it feels about you.
 When you sell horses you choose which ones (tick them under Livestock). A horse's price follows its Speed and Strength, from about half to over one and a half times the going rate, and each extra horse sold in one season fetches a little less. Bought horses are an unknown quantity.
+
+## Vengeance
+If the head of the house is killed on a raid, there is a 50% chance the crew name the man who struck the blow. His successor is then asked once whether to swear vengeance (Honor +1; later raids on that coast may find the killer, Honor +6 if he is killed, a wound if the fight is lost) or let it lie (Honor −1.5). An unfulfilled oath is forgotten after fifteen years. `node test/vow.js` checks it.

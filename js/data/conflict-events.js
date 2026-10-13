@@ -175,6 +175,25 @@
         ];
       } },
 
+    { id: 'raid_vow', w: 0, needs: () => null,
+      title: (c) => `${c.p.fallen} fell in ${IS.Raid.DEST[c.p.dest].short}`,
+      body: (c) => { const d = IS.Raid.DEST[c.p.dest]; return [`${c.p.fallen}, your ${c.p.rel === 'kinsman' ? 'kinsman' : c.p.rel}, did not come home from ${d.name}. The crew who brought the news say that ${c.p.killer} struck the blow, and that he still lives and boasts of it. The house is yours now, and so is the debt.`, 'A man of your name is expected to say something about it.']; },
+      options: (c) => {
+        const d = IS.Raid.DEST[c.p.dest];
+        return [
+          { id: 'swear', label: `Swear to avenge ${c.p.fallen}`, desc: `Honor +1 now. The next time you sail to ${d.short} (at your own cost), you may find ${c.p.killer}: about even odds if you are strong. Honor +6 if you kill him. A failed search or fight leaves the oath standing, and a lost fight wounds you. If you never sail, the oath is forgotten in fifteen years.`,
+            run: () => {
+              c.honor(1, `You swore to avenge ${c.p.fallen}`);
+              c.state.vow.status = 'sworn'; c.state.vow.turn = c.state.turn;
+              c.state.hooks = c.state.hooks || [];
+              c.state.hooks.push({ id: 'vow', type: 'raid_vow', status: 'open', text: `You have sworn to avenge ${c.p.fallen}, killed by ${c.p.killer} in ${d.short}.` });
+              return `You said it in front of the household, and the household heard. There is a raid in it now, whenever you choose to sail for ${d.short}.`;
+            } },
+          { id: 'letlie', label: 'Let it lie', desc: 'Honor −1.5. Men fall on raids. Some will say that is what raiding is.',
+            run: () => { c.honor(-1.5, `You let ${c.p.fallen}'s death go unanswered`); c.state.vow = null; return `${c.p.fallen} was mourned and the house went on. Some said it was sensible, and some said it in a lower voice.`; } },
+        ];
+      } },
+
     { id: 'neighbor_suit', w: 0.6,
       needs: (c) => c.neighbor(),
       title: (c) => `${c.p.head} brings a suit`,

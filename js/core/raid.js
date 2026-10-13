@@ -9,6 +9,7 @@
   const r1 = (v) => Math.round(v * 10) / 10;
   const fmt = (x) => Math.round(x).toLocaleString('en-US');
 
+  const VOW_CHANCE = 0.5;     // chance a man killed on a raid leaves a named killer to be avenged
   const SHIP_COST = 420;
   const outfit = (tier) => 90 + 30 * tier;
   const SHARE_FEE = 30;
@@ -179,6 +180,34 @@
     }
   }
 
+  const FIND = { disaster: 0.1, poor: 0.3, fair: 0.55, great: 0.75, legendary: 0.9 };
+  function seekVow(state, rng, d, tier, head, honor, lines) {
+    const v = state.vow;
+    if (!rng.chance(FIND[tier])) { lines.push(`You asked after ${v.killer} in every harbor, and nobody would say where he was. The oath still stands.`); return; }
+    const p = clamp(0.4 + (head.attrs.strength - 50) / 150, 0.2, 0.8);
+    if (rng.chance(p)) {
+      honor(6, `You avenged ${v.fallen}, killing ${v.killer} in ${d.short}`);
+      state.hooks = (state.hooks || []).filter((h) => h.type !== 'raid_vow');
+      state.vow = null;
+      lines.push(`You found ${v.killer} in a hall full of his friends and called him out. He fell, and you walked down to the ship with the whole shore watching. ${v.fallen} is avenged.`);
+    } else {
+      const w = rng.int(5, 12);
+      head.peak.strength = Math.max(8, head.peak.strength - w); head.attrs.strength = Math.max(8, head.attrs.strength - w);
+      honor(-1, `${v.killer} bested you in ${d.short}`);
+      lines.push(`You found ${v.killer}, and he was the better man that day. You limped back to the ship with a wound that will not heal clean (strength −${w}). The oath still stands.`);
+    }
+  }
+
+  /** After a head is killed on a raid and the line goes on: the question put to his successor, once. */
+  function offerVow(state) {
+    const v = state.vow, head = state.people[state.headId];
+    if (!v || v.status !== 'offered' || !head || head.deathYear != null || head.id === v.fallenId) return null;
+    v.status = 'asked';
+    const old = (state.deadHeads || []).slice(-1)[0];
+    const rel = head.role === 'brother' ? 'brother' : head.role === 'son' ? 'father' : 'kinsman';
+    return { id: 'raid_vow', wifeId: null, kind: 'event', params: { dest: v.dest, killer: v.killer, fallen: v.fallen, rel, farmDead: old ? old.name : v.fallen } };
+  }
+
   /** Sail, fight, come home (or do not). honor(d, why) records Honor. Returns { lines, died }. */
   function run(state, rng, spec, honor) {
     const d = DEST[spec.dest], head = headOf(state);
@@ -224,6 +253,9 @@
       lines.push(`You took a bad wound in the fighting and lost some of your strength (−${w}).`);
     }
 
+    // an oath of vengeance sworn for the man who fell here
+    if (!died && state.vow && state.vow.status === 'sworn' && state.vow.dest === d.id) seekVow(state, rng, d, tier, head, honor, lines);
+
     // loot
     const keep = died ? (tier === 'disaster' ? 0 : Math.round(loot * 0.5)) : loot;
     if (keep > 0) {
@@ -263,6 +295,12 @@
       head.deathText = `fell on a raid in ${where}`;
       if (state.expedition) state.expedition = null;
       lines.push(`You did not come home. You fell in ${where}, and your crew carried the news back.`);
+      // the man who killed you may be named, and your successor may be asked to avenge you
+      if (rng.chance(VOW_CHANCE)) {
+        const killer = IS.Names.male(rng).first;
+        state.vow = { status: 'offered', dest: d.id, killer, fallen: head.first, fallenId: head.id, turn: state.turn };
+        lines.push(`The crew say that ${killer}, a man of ${where}, struck the blow, and that his name is known there.`);
+      }
     }
 
     // the farm while you were away
@@ -276,5 +314,5 @@
     return { lines, died, tier, loot: keep };
   }
 
-  IS.Raid = { DEST, ORDER, SHIP_COST, SHARE_FEE, outfit, isAway, deputies, headFit, canRaid, heirless, cost, stewardEff, deathEstimate, strengthFactor, begin, run, raiders, memberDeathEstimate, runMember };
+  IS.Raid = { DEST, ORDER, SHIP_COST, SHARE_FEE, outfit, isAway, deputies, headFit, canRaid, heirless, cost, stewardEff, deathEstimate, strengthFactor, begin, run, raiders, memberDeathEstimate, runMember, offerVow };
 })();
