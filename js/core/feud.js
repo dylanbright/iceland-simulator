@@ -54,7 +54,43 @@
     const base = (honor - 45) * 0.5;
     return clamp(base + (n === 'peaceable' ? 6 : n === 'quarrelsome' ? -9 : 0), -30, 30);
   }
-  const houses = (state) => Object.values(state.families || {}).filter((f) => f.head && f.farm !== state.farm.name);
+  const allHouses = (state) => Object.values(state.families || {}).filter((f) => f.head && f.farm !== state.farm.name);
+  const DISTRICT = 10;
+  /** The houses that make up your district: a fixed handful, plus anyone you have a history with. */
+  function houses(state) {
+    const all = allHouses(state);
+    const core = all.slice().sort((a, b) => hash(state.seed + '|d|' + a.farm) - hash(state.seed + '|d|' + b.farm)).slice(0, DISTRICT);
+    const keep = new Set(core.map((f) => f.farm));
+    for (const f of all) if (!keep.has(f.farm) && (Math.abs(rel(state, f.farm)) >= 15 || get(state, f.farm))) core.push(f);
+    return core;
+  }
+
+  /* ---------- how the neighbours feel about each other ---------- */
+  const pairKey = (a, b) => (a < b ? a + '|' + b : b + '|' + a);
+  function baseBond(state, a, b) {
+    const fa = state.families[a], fb = state.families[b];
+    let v = (hash(String(state.seed) + '|bond|' + pairKey(a, b)) - 0.5) * 80;
+    for (const [x, y] of [[a, b], [b, a]]) {
+      const n = natureOf(state, x), gap = (state.families[y].tier || 3) - (state.families[x].tier || 3);
+      if (n === 'quarrelsome') v -= 8;
+      else if (n === 'peaceable') v += 7;
+      else if (n === 'jealous' && gap > 0) v -= 6 * Math.min(gap, 3);
+    }
+    void fa; void fb;
+    return clamp(v, -80, 80);
+  }
+  /** How house a feels about house b (the other way round is the same number: a bond is shared). */
+  function bond(state, a, b) {
+    if (!state.families || !state.families[a] || !state.families[b]) return 0;
+    const sh = (state.bondShift && state.bondShift[pairKey(a, b)]) || 0;
+    return clamp(Math.round(baseBond(state, a, b) + sh), -100, 100);
+  }
+  function shiftBond(state, a, b, d) {
+    state.bondShift = state.bondShift || {};
+    const k = pairKey(a, b);
+    state.bondShift[k] = clamp((state.bondShift[k] || 0) + d, -90, 90);
+  }
+
 
   const get = (state, farm) => (state.feuds || []).find((f) => f.farm === farm) || null;
   const rel = (state, farm) => (state.relations && state.relations[farm]) || 0;
@@ -108,6 +144,61 @@
   /** Odds, in words, for the option text (the player gets words, not numbers). */
   const oddsWord = (p) => (p >= 0.7 ? 'good odds' : p >= 0.5 ? 'fair odds' : p >= 0.35 ? 'poor odds' : 'long odds');
 
+  /* ---------- neighbours against each other ---------- */
+  const NQ_STAGE = ['', 'bad blood', 'stock and hay raided', 'a killing'];
+  function neighbourQuarrels(state, rng, rep, ctx) {
+    state.nq = state.nq || {};
+    state.bondShift = state.bondShift || {};
+    for (const k of Object.keys(state.bondShift)) { state.bondShift[k] = r1(state.bondShift[k] * 0.97); if (Math.abs(state.bondShift[k]) < 1) delete state.bondShift[k]; }
+    const hs = houses(state);
+    if (hs.length < 2) return;
+    // quarrels cool when nothing happens and the two have mended a little
+    for (const k of Object.keys(state.nq)) {
+      const q = state.nq[k];
+      q.quiet++;
+      if (bond(state, q.a, q.b) > -25 && q.quiet >= 6) delete state.nq[k];
+      else if (q.quiet >= 14) { q.stage = Math.max(1, q.stage - 1); q.quiet = 0; if (q.stage === 1 && bond(state, q.a, q.b) > -40) delete state.nq[k]; }
+    }
+    // a new quarrel
+    if (Object.keys(state.nq).length < 2 && rng.chance(0.07)) {
+      const pairs = [];
+      for (let i = 0; i < hs.length; i++) for (let j = i + 1; j < hs.length; j++) {
+        const b = bond(state, hs[i].farm, hs[j].farm);
+        if (b <= -36 && !state.nq[pairKey(hs[i].farm, hs[j].farm)]) pairs.push({ a: hs[i].farm, b: hs[j].farm, w: -b - 25 });
+      }
+      if (pairs.length) { const p = rng.weighted(pairs, (x) => x.w); state.nq[pairKey(p.a, p.b)] = { a: p.a, b: p.b, stage: 1, quiet: 0, turn: state.turn }; }
+    }
+    // an act in an existing quarrel
+    const live = Object.values(state.nq);
+    if (!live.length) return;
+    const q = rng.pick(live);
+    if (!rng.chance(0.14 + 0.04 * q.stage)) return;
+    q.quiet = 0;
+    // who struck whom: the more quarrelsome strikes
+    const sa = natureOf(state, q.a) === 'quarrelsome' ? 1.6 : 1, sb = natureOf(state, q.b) === 'quarrelsome' ? 1.6 : 1;
+    const aggr = rng.chance(sa / (sa + sb)) ? q.a : q.b, vict = aggr === q.a ? q.b : q.a;
+    const ha = state.families[aggr].head.first, hv = state.families[vict].head.first;
+    if (bond(state, aggr, vict) < -45 && q.stage < 3 && rng.chance(0.25)) q.stage++;
+    shiftBond(state, aggr, vict, -8);
+    const acts = [null,
+      `${ha} of ${aggr} insulted ${hv} of ${vict} before the whole Thing.`,
+      `Men of ${aggr} drove off a good part of ${hv}'s stock. ${vict} is very angry.`,
+      `A man of ${vict} was killed by ${ha}'s people. ${hv} is calling for his price.`];
+    const note = acts[q.stage];
+    // do they ask you to take a side? friends do, and enemies of the aggressor are likelier to
+    const friendlier = rel(state, vict) >= rel(state, aggr) ? vict : aggr;
+    const mine = rel(state, friendlier) >= -5 ? friendlier : null;
+    const pending = state.pending.some((p) => p.kind === 'event' && /^(feud_|nbr_)/.test(p.id));
+    const callOnYou = mine && !pending && !state.expedition && rng.chance(clamp(0.3 + rel(state, mine) / 150 + (q.stage === 3 ? 0.2 : 0), 0.15, 0.8));
+    // sometimes the matter is settled, by the Thing or by neighbours, and the quarrel ends
+    if (rng.chance(0.2)) { shiftBond(state, q.a, q.b, 14); delete state.nq[pairKey(q.a, q.b)]; }
+    if (callOnYou) {
+      const ally = mine, foe = mine === vict ? aggr : vict;
+      state.pending.push({ id: q.stage === 3 ? 'nbr_revenge' : 'nbr_help', wifeId: null, kind: 'event',
+        params: { ally, allyHead: state.families[ally].head.first, foe, foeHead: state.families[foe].head.first, stage: q.stage, friend: rel(state, ally) >= 15, value: wergild(state, 'servant') } });
+    } else if (rep && rep.events) rep.events.push(note);
+  }
+
   /* ---------- the seasonal tick ---------- */
   function tick(state, rng, rep, ctx) {
     state.relations = state.relations || {}; state.feuds = state.feuds || [];
@@ -145,6 +236,8 @@
         if (f.stage > 1) { f.stage--; f.quiet = 0; } else if (!f.owedThem) end(state, f.farm);
       } else if (f.stage >= 3 && f.quiet >= 10) { f.stage--; f.quiet = 0; }
     }
+    // the neighbours' own quarrels: they open between houses that dislike each other, climb, and sometimes call on you
+    neighbourQuarrels(state, rng, rep, ctx);
     // houses that dislike you pick quarrels even before a feud: border claims and suits
     if (!state.pending.some((p) => p.kind === 'event' && /^(feud_|boundary|neighbor_suit)/.test(p.id)) && !state.expedition) {
       const sour = houses(state).filter((fam) => rel(state, fam.farm) <= -20 && !get(state, fam.farm));
@@ -266,7 +359,11 @@
       if (shown && n === 'jealous' && honor > 40) why = 'Your standing eats at him.';
       else if (shown && n !== 'jealous' && honor >= 65 && r > 0) why = 'He thinks well of a man of your standing.';
       else if (shown && n !== 'jealous' && honor < 30 && r < 0) why = 'He has little respect for a man of your name.';
-      return { farm: fam.farm, head: fam.head.first, tier: fam.tier, goði: !!fam.goði, rel: Math.round(r), word: word(r) || 'on neutral terms',
+      const hs = houses(state).filter((x) => x.farm !== fam.farm);
+      const ties = hs.map((x) => ({ farm: x.farm, head: x.head.first, b: bond(state, fam.farm, x.farm) }));
+      const likes = ties.filter((t) => t.b >= 25).sort((a, b) => b.b - a.b).slice(0, 2).map((t) => t.head);
+      const dislikes = ties.filter((t) => t.b <= -25).sort((a, b) => a.b - b.b).slice(0, 2).map((t) => t.head + (state.nq && state.nq[pairKey(fam.farm, t.farm)] ? ' (in a quarrel)' : ''));
+      return { likes, dislikes, farm: fam.farm, head: fam.head.first, tier: fam.tier, goði: !!fam.goði, rel: Math.round(r), word: word(r) || 'on neutral terms',
         feud: fd ? STAGES[fd.stage || 1] : null, owed: fd ? Math.round(fd.owedThem || 0) : 0, nature: shown ? NATURES[n].word : null, natureNote: shown ? NATURES[n].note : null, why };
     }).sort((a, b) => a.rel - b.rel);
   }
@@ -293,5 +390,5 @@
     }
   }
 
-  IS.Feud = { HOSTILE, STAGES, word, get, rel, bump, ensure, escalate, end, whyOf, men, fightOdds, lawChance, wergild, oddsWord, tick, summary, seed, bloodshed, theyFall, natureOf, directory, NATURES };
+  IS.Feud = { HOSTILE, STAGES, word, get, rel, bump, ensure, escalate, end, whyOf, men, fightOdds, lawChance, wergild, oddsWord, tick, summary, seed, bloodshed, theyFall, natureOf, directory, NATURES, bond, shiftBond, NQ_STAGE };
 })();

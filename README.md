@@ -48,3 +48,6 @@ When you sell horses you choose which ones (tick them under Livestock). A horse'
 
 ## Vengeance
 If the head of the house, or a son or brother of his, is killed on a raid, there is a 50% chance the crew name the man who struck the blow. The head (or, if he was the one killed, his successor) is then asked once whether to swear vengeance (Honor +1; later raids on that coast may find the killer, Honor +6 if he is killed, a wound if the fight is lost) or let it lie (Honor −1.5). An unfulfilled oath is forgotten after fifteen years. `node test/vow.js` checks it.
+
+## Neighbors against each other
+Every pair of neighbors has a fixed bond (from their natures and wealth) that events can move. Houses that dislike each other fall into quarrels (insults, stock driven off, killings), which sometimes end on their own and sometimes reach you: a neighbor asks you to ride with him, stand with him at the Thing, lend silver, or (after a killing) join his revenge or back his claim for blood-money. Helping a friend wins his gratitude and the other house's enmity, and can start a feud of your own. The nábúar screen shows who is friends with, or at odds with, whom. `node test/nbrevents.js` plays them through.
