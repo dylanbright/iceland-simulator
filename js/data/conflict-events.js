@@ -177,7 +177,7 @@
 
     { id: 'raid_vow', w: 0, needs: () => null,
       title: (c) => `${c.p.fallen} fell in ${IS.Raid.DEST[c.p.dest].short}`,
-      body: (c) => { const d = IS.Raid.DEST[c.p.dest]; return [`${c.p.fallen}, your ${c.p.rel === 'kinsman' ? 'kinsman' : c.p.rel}, did not come home from ${d.name}. The crew who brought the news say that ${c.p.killer} struck the blow, and that he still lives and boasts of it. The house is yours now, and so is the debt.`, 'A man of your name is expected to say something about it.']; },
+      body: (c) => { const d = IS.Raid.DEST[c.p.dest]; return [`${c.p.fallen}, your ${c.p.rel === 'kinsman' ? 'kinsman' : c.p.rel}, did not come home from ${d.name}. The crew who brought the news say that ${c.p.killer} struck the blow, and that he still lives and boasts of it.${c.p.member ? '' : ' The house is yours now, and so is the debt.'}`, 'A man of your name is expected to say something about it.']; },
       options: (c) => {
         const d = IS.Raid.DEST[c.p.dest];
         return [

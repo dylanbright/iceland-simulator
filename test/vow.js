@@ -24,4 +24,18 @@ for (let i = 0; i < 400; i++) {
   }
 }
 console.log({ games, died, offered, sworn, avenged, bad });
+
+// a son or brother killed on a raid also leaves a vow to the (living) head
+{
+  let fell = 0, vows = 0, evs = 0;
+  for (let i = 0; i < 600; i++) {
+    const s = IS.Game.newGame('mv-' + i);
+    const pool = IS.Raid.raiders(s).filter((p) => ['son', 'brother'].includes(p.role));
+    if (!pool.length) continue;
+    const rng = IS.Turn.rngOf(s);
+    const r = IS.Raid.runMember(s, rng, { dest: 'ireland', memberId: pool[0].id, outfitted: true }, () => {});
+    if (r.died) { fell++; if (s.vow) vows++; const v = IS.Raid.offerVow(s); if (v) { evs++; s.pending.push(v); const d = IS.Household.describe(s); if (/undefined|NaN/.test(JSON.stringify(d))) { console.log('BAD', JSON.stringify(d)); process.exit(1); } } }
+  }
+  console.log({ memberDeaths: fell, vows, offered: evs });
+}
 process.exit(bad ? 1 : 0);

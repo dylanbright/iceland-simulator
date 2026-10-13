@@ -328,11 +328,12 @@
     if (!opt) return null;
     if (opt.cost && E.cashOf(state.farm) < opt.cost) return null;
     const text = opt.run();
-    if (head0.deathYear != null) { IS.Turn.headDied(state, rng); const v = IS.Raid && IS.Raid.offerVow(state); if (v) state.pending.push(v); }
+    if (head0.deathYear != null) IS.Turn.headDied(state, rng);
     if (IS.Stable) IS.Stable.sync(state, rng);
     state.report.incidents = state.report.incidents || [];
     state.report.incidents.push({ title: def.title(ctx), wife: wife ? wife.first : null, text: [text, ...log].join(' ') });
     state.pending.shift();
+    { const v = IS.Raid && IS.Raid.offerVow(state); if (v) state.pending.push(v); }
     const f = state.farm;
     f.wealth = E.wealth(f); f.tier = E.tierOfFarm(f); f.tierLabel = IS.Start.TIER_LABEL[f.tier];
     dropInvalid(state);

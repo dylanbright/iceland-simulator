@@ -118,6 +118,11 @@
       lines.push(`${him} did not come home. He fell in ${where}.`);
       m.deathYear = yr; m.deathAge = yr - m.birthYear; m.deathCause = 'raid'; m.deathText = `fell on a raid in ${where}`;
       IS.Turn.removeFromHousehold(state, m.id);
+      if (!state.vow && ['son', 'brother'].includes(m.role) && rng.chance(VOW_CHANCE)) {
+        const killer = IS.Names.male(rng).first;
+        state.vow = { status: 'offered', dest: d.id, killer, fallen: him, fallenId: m.id, rel: m.role, member: true, turn: state.turn };
+        lines.push(`His shipmates say that ${killer}, a man of ${where}, killed him, and that his name is known there.`);
+      }
       const mother = m.motherId && state.people[m.motherId];
       if (mother) { mother.lastLossTurn = state.turn; if (state.household.wives.includes(mother.id)) mother.attrs.happiness = clamp(mother.attrs.happiness - 8, 0, 100); }
       const keep = tier === 'disaster' ? 0 : Math.round(loot * 0.4);
@@ -204,8 +209,8 @@
     if (!v || v.status !== 'offered' || !head || head.deathYear != null || head.id === v.fallenId) return null;
     v.status = 'asked';
     const old = (state.deadHeads || []).slice(-1)[0];
-    const rel = head.role === 'brother' ? 'brother' : head.role === 'son' ? 'father' : 'kinsman';
-    return { id: 'raid_vow', wifeId: null, kind: 'event', params: { dest: v.dest, killer: v.killer, fallen: v.fallen, rel, farmDead: old ? old.name : v.fallen } };
+    const rel = v.rel || (head.role === 'brother' ? 'brother' : head.role === 'son' ? 'father' : 'kinsman');
+    return { id: 'raid_vow', wifeId: null, kind: 'event', params: { dest: v.dest, killer: v.killer, fallen: v.fallen, rel, member: !!v.member, farmDead: old ? old.name : v.fallen } };
   }
 
   /** Sail, fight, come home (or do not). honor(d, why) records Honor. Returns { lines, died }. */
@@ -296,7 +301,7 @@
       if (state.expedition) state.expedition = null;
       lines.push(`You did not come home. You fell in ${where}, and your crew carried the news back.`);
       // the man who killed you may be named, and your successor may be asked to avenge you
-      if (rng.chance(VOW_CHANCE)) {
+      if (!state.vow && rng.chance(VOW_CHANCE)) {
         const killer = IS.Names.male(rng).first;
         state.vow = { status: 'offered', dest: d.id, killer, fallen: head.first, fallenId: head.id, turn: state.turn };
         lines.push(`The crew say that ${killer}, a man of ${where}, struck the blow, and that his name is known there.`);
