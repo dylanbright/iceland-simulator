@@ -51,3 +51,14 @@ If the head of the house, or a son or brother of his, is killed on a raid, there
 
 ## Neighbors against each other
 Every pair of neighbors has a fixed bond (from their natures and wealth) that events can move. Houses that dislike each other fall into quarrels (insults, stock driven off, killings), which sometimes end on their own and sometimes reach you: a neighbor asks you to ride with him, stand with him at the Thing, lend silver, or (after a killing) join his revenge or back his claim for blood-money. Helping a friend wins his gratitude and the other house's enmity, and can start a feud of your own. The nábúar screen shows who is friends with, or at odds with, whom. `node test/nbrevents.js` plays them through.
+
+## Snowball (Njáls saga)
+
+Every feud keeps a tally of the dead (`Feud.slain`). A killing is a debt: when you kill one of theirs, his kin answer, and you must answer that. Each death past the first raises the feud a stage, so a row over sheep can end with a burning. Four events carry the chain (`js/data/snowball-events.js`):
+
+- **snow_answer** - they kill a man of yours for the man you killed. Prosecute, count the dead and settle, ride again (which restarts the loop), or let it lie.
+- **snow_allies** - at three dead, a kinsman of the enemy takes his side. Ask a friend to stand with you (gives your side an edge in fights), pay the kinsman to stay out, or ignore it (a second house becomes your enemy, and their attacks grow).
+- **snow_peace** - a respected man counts the dead and offers a settlement; the side with fewer dead pays the difference. Accept, demand more, or refuse.
+- **snow_broken** - during the truce a hothead on either side breaks the peace. Defend your own man, pay double, or send him abroad. If it was them, prosecute, take a double price, avenge or swallow it.
+
+The *nábúar* dialog shows the tally and any truce. `node test/snowball.js 80 avenge` plays an always-avenge line to check the chain.

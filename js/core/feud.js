@@ -109,6 +109,22 @@
     const f = get(state, farm); if (!f) return;
     f.stage = clamp(f.stage + d, 1, 5); f.quiet = 0;
   };
+  /** The tally of the dead. Each death is the reason for the next: the side that lost a man is owed an answer,
+   *  and a house with enough dead on both sides is hard to stop. side = 'you' (a man of yours fell) or 'them'. */
+  function slain(state, farm, side, n) {
+    const f = ensure(state, farm);
+    f.toll = f.toll || { you: 0, them: 0 };
+    f.toll[side] += n || 1;
+    if (side === 'them') f.answer = (f.answer || 0) + (n || 1);
+    f.truce = 0;
+    const total = f.toll.you + f.toll.them;
+    if (total >= 2) escalate(state, farm, 1);
+    bump(state, farm, side === 'them' ? -10 : -6);
+    return total;
+  }
+  const tollOf = (f) => (f && f.toll ? f.toll : { you: 0, them: 0 });
+  /** Friends at your back (backers) against kinsmen at theirs (allies): a small edge in the fights of this feud. */
+  const edge = (state, farm) => { const f = get(state, farm); return f ? clamp(0.06 * ((f.backers || 0) - (f.allies || 0)), -0.18, 0.18) : 0; };
   const end = (state, farm) => { state.feuds = (state.feuds || []).filter((f) => f.farm !== farm); };
 
   /** What the old family history says about why a house hates yours. */
@@ -232,14 +248,15 @@
     // feuds cool when nothing happens
     for (const f of state.feuds.slice()) {
       f.quiet++;
+      if (f.truce > 0) f.truce--;
       if (rel(state, f.farm) > HOSTILE && f.quiet >= 6) {
-        if (f.stage > 1) { f.stage--; f.quiet = 0; } else if (!f.owedThem) end(state, f.farm);
+        if (f.stage > 1) { f.stage--; f.quiet = 0; } else if (!f.owedThem && !(f.truce > 0)) end(state, f.farm);
       } else if (f.stage >= 3 && f.quiet >= 10) { f.stage--; f.quiet = 0; }
     }
     // the neighbours' own quarrels: they open between houses that dislike each other, climb, and sometimes call on you
     neighbourQuarrels(state, rng, rep, ctx);
     // houses that dislike you pick quarrels even before a feud: border claims and suits
-    if (!state.pending.some((p) => p.kind === 'event' && /^(feud_|boundary|neighbor_suit)/.test(p.id)) && !state.expedition) {
+    if (!state.pending.some((p) => p.kind === 'event' && /^(feud_|snow_|boundary|neighbor_suit)/.test(p.id)) && !state.expedition) {
       const sour = houses(state).filter((fam) => rel(state, fam.farm) <= -20 && !get(state, fam.farm));
       if (sour.length) {
         const fam = sour.slice().sort((a, b) => rel(state, a.farm) - rel(state, b.farm))[0];
@@ -249,15 +266,19 @@
       }
     }
     if (!state.feuds.length) return;
-    if (state.pending.some((p) => p.kind === 'event' && /^feud_/.test(p.id))) return;
+    if (state.pending.some((p) => p.kind === 'event' && /^(feud_|snow_)/.test(p.id))) return;
+
+    // killings beget killings: answers, allies, peace-meetings and broken peace
+    if (chain(state, rng, ctx)) return;
 
     // the worst enemy is the one who acts; a house with its master away is a ripe target
-    const f = state.feuds.slice().sort((a, b) => rel(state, a.farm) - rel(state, b.farm))[0];
+    const f = state.feuds.filter((x) => !(x.truce > 0)).sort((a, b) => rel(state, a.farm) - rel(state, b.farm))[0];
+    if (!f) return;
     const fam = state.families && state.families[f.farm];
     if (!fam || !fam.head) return;
     const away = state.expedition ? 1.4 : 1;
     const nat = natureOf(state, f.farm);
-    const p = clamp(0.1 + (-rel(state, f.farm) - 40) / 220 + (f.stage - 1) * 0.03, 0.06, 0.45) * away * (nat === 'quarrelsome' ? 1.3 : nat === 'peaceable' ? 0.7 : 1);
+    const p = clamp(0.1 + (-rel(state, f.farm) - 40) / 220 + (f.stage - 1) * 0.03 + (f.allies || 0) * 0.04 - (f.backers || 0) * 0.02, 0.06, 0.5) * away * (nat === 'quarrelsome' ? 1.3 : nat === 'peaceable' ? 0.7 : 1);
     if (!rng.chance(p)) return;
     f.quiet = 0;
     const head = fam.head.first;
@@ -290,6 +311,7 @@
     if (!victim) return '';
     const kind = victim.role === 'servant' ? 'servant' : victim.role === 'son' ? 'son' : 'kin';
     ctx.kill(victim, `was killed in the fight with the men of ${farm}`, 'killed in a feud');
+    slain(state, farm, 'you');
     state.pending.push({ id: 'feud_kin', wifeId: null, kind: 'event', params: { farm, head, victim: victim.first, relation: victim.role, value: wergild(state, kind), how: 'skirmish' } });
     return ` ${victim.first} did not ride home.`;
   }
@@ -299,6 +321,7 @@
     const f = get(state, farm);
     if (f) f.owedThem += wergild(state, 'kin');
     bump(state, farm, -12);
+    slain(state, farm, 'them');
     return ' One of their men was killed in it, and his kin will want a price for him.';
   }
 
@@ -328,6 +351,7 @@
     if (!victim) return livestock(state, rng, ctx, f, head);
     const kind = victim.kind === 'thrall' ? 'thrall' : 'servant';
     ctx.kill(victim, `was killed by the men of ${f.farm}`, 'killed in a feud');
+    if (kind === 'servant') slain(state, f.farm, 'you');
     return { id: 'feud_thrall', params: { farm: f.farm, head, victim: victim.first, kind, value: wergild(state, kind) } };
   }
   function kin(state, rng, ctx, f, fam, head) {
@@ -335,12 +359,80 @@
     if (!victim) return thrall(state, rng, ctx, f, fam, head);
     const kind = victim.role === 'servant' ? 'servant' : victim.role === 'son' ? 'son' : 'kin';
     ctx.kill(victim, `was killed by the men of ${f.farm}`, 'killed in a feud');
+    slain(state, f.farm, 'you');
     return { id: 'feud_kin', params: { farm: f.farm, head, victim: victim.first, relation: victim.role, value: wergild(state, kind) } };
   }
   function burning(state, rng, ctx, f, fam, head) {
-    return { id: 'feud_burning', params: { farm: f.farm, head, force: rng.int(12, 30) } };
+    return { id: 'feud_burning', params: { farm: f.farm, head, force: rng.int(12, 30) + 4 * (f.allies || 0) } };
   }
   const insult = (state, rng, ctx, f, fam, head) => ({ id: rng.chance(0.5) ? 'feud_insult' : 'feud_flare', params: { farm: f.farm, head, why: f.why } });
+
+
+  /** The chain itself. One step per season at most; returns true if it pushed an event. */
+  function chain(state, rng, ctx) {
+    const year = E().yearOf(state);
+    for (const f of state.feuds.slice()) {
+      const fam = state.families && state.families[f.farm];
+      if (!fam || !fam.head) continue;
+      const head = fam.head.first, t = tollOf(f), total = t.you + t.them;
+      const nat = natureOf(state, f.farm), away = state.expedition ? 1.3 : 1;
+      const hot = (nat === 'quarrelsome' ? 1.3 : nat === 'peaceable' ? 0.7 : 1);
+      // 1. a truce, and the hothead who breaks it
+      if (f.truce > 0) {
+        if (rng.chance(0.16 * (f.hotblood || 1))) {
+          const side = rng.chance(0.5) ? 'you' : 'them';
+          const mine = pickMale(state, rng, ['son', 'brother', 'servant'], 16);
+          if (side === 'you' && !mine) continue;
+          let victim = null;
+          if (side === 'them') {
+            victim = pickMale(state, rng, ['son', 'brother', 'servant'], 16);
+            if (!victim) continue;
+            ctx.kill(victim, `was killed when the peace with ${f.farm} was broken`, 'killed in a feud');
+            slain(state, f.farm, 'you');
+          } else { slain(state, f.farm, 'them'); }
+          f.truce = 0;
+          const person = side === 'you' ? mine : victim;
+          state.pending.push({ id: 'snow_broken', wifeId: null, kind: 'event', params: { farm: f.farm, head, side, hotId: side === 'you' ? mine.id : null, hotName: side === 'you' ? mine.first : '', victimName: victim ? victim.first : '', relation: person.role, value: wergild(state, 'kin'), toll: total + 1 } });
+          return true;
+        }
+        continue;
+      }
+      // 2. a man of theirs fell: his kin answer
+      if (f.answer > 0 && rng.chance(0.55 * hot * away)) {
+        const victim = pickMale(state, rng, ['son', 'brother', 'servant'], 16);
+        f.answer = Math.max(0, f.answer - 1);
+        if (!victim) { escalate(state, f.farm, 1); continue; }
+        const kind = victim.role === 'servant' ? 'servant' : victim.role === 'son' ? 'son' : 'kin';
+        ctx.kill(victim, `was killed by the men of ${f.farm}, who were answering for their dead`, 'killed in a feud');
+        slain(state, f.farm, 'you');
+        state.pending.push({ id: 'snow_answer', wifeId: null, kind: 'event', params: { farm: f.farm, head, victimName: victim.first, relation: victim.role, value: wergild(state, kind), toll: tollOf(f).you + tollOf(f).them } });
+        return true;
+      }
+      // 3. friends and kinsmen choose sides
+      if (total >= 3 && (f.allies || 0) < 2 && total >= (f.allyAt || 0) + 3 && rng.chance(0.4)) {
+        const mine = state.families && houses(state).filter((x) => x.farm !== f.farm && Math.abs(rel(state, x.farm)) < 55 && !get(state, x.farm));
+        const cands = (mine || []).map((x) => ({ x, b: bond(state, f.farm, x.farm) })).filter((o) => o.b >= 15).sort((a, b) => b.b - a.b);
+        if (cands.length) {
+          const a = cands[0].x; f.allyAt = total;
+          const friends = houses(state).filter((x) => x.farm !== f.farm && x.farm !== a.farm && rel(state, x.farm) >= 5).sort((p, q) => rel(state, q.farm) - rel(state, p.farm));
+          const fr = friends[0] || null;
+          state.pending.push({ id: 'snow_allies', wifeId: null, kind: 'event', params: { farm: f.farm, head, ally: a.farm, allyHead: a.head.first, friend: fr ? fr.farm : '', friendHead: fr ? fr.head.first : '', toll: total } });
+          return true;
+        }
+      }
+      // 4. a respected man tries to count the dead and make a peace
+      if (t.you >= 1 && t.them >= 1 && total >= 2 && f.stage >= 3 && total >= (f.peaceAt || 0) + 2 && rng.chance(0.3)) {
+        const mediators = houses(state).filter((x) => x.farm !== f.farm && !get(state, x.farm) && rel(state, x.farm) > -20 && (x.goði || x.tier >= 2)).sort((a, b) => b.tier - a.tier);
+        if (mediators.length) {
+          f.peaceAt = total;
+          const m = mediators[0];
+          state.pending.push({ id: 'snow_peace', wifeId: null, kind: 'event', params: { farm: f.farm, head, mediator: m.head.first, mediatorFarm: m.farm, mine: t.you, theirs: t.them, value: wergild(state, 'kin') } });
+          return true;
+        }
+      }
+    }
+    return false;
+  }
 
   const ACTS = [null,
     insult,
@@ -364,7 +456,7 @@
       const likes = ties.filter((t) => t.b >= 25).sort((a, b) => b.b - a.b).slice(0, 2).map((t) => t.head);
       const dislikes = ties.filter((t) => t.b <= -25).sort((a, b) => a.b - b.b).slice(0, 2).map((t) => t.head + (state.nq && state.nq[pairKey(fam.farm, t.farm)] ? ' (in a quarrel)' : ''));
       return { likes, dislikes, farm: fam.farm, head: fam.head.first, tier: fam.tier, goði: !!fam.goði, rel: Math.round(r), word: word(r) || 'on neutral terms',
-        feud: fd ? STAGES[fd.stage || 1] : null, owed: fd ? Math.round(fd.owedThem || 0) : 0, nature: shown ? NATURES[n].word : null, natureNote: shown ? NATURES[n].note : null, why };
+        feud: fd ? STAGES[fd.stage || 1] : null, owed: fd ? Math.round(fd.owedThem || 0) : 0, toll: fd && fd.toll && (fd.toll.you + fd.toll.them) ? { you: fd.toll.you, them: fd.toll.them } : null, truce: !!(fd && fd.truce > 0), nature: shown ? NATURES[n].word : null, natureNote: shown ? NATURES[n].note : null, why };
     }).sort((a, b) => a.rel - b.rel);
   }
 
@@ -390,5 +482,5 @@
     }
   }
 
-  IS.Feud = { HOSTILE, STAGES, word, get, rel, bump, ensure, escalate, end, whyOf, men, fightOdds, lawChance, wergild, oddsWord, tick, summary, seed, bloodshed, theyFall, natureOf, directory, NATURES, bond, shiftBond, NQ_STAGE };
+  IS.Feud = { HOSTILE, STAGES, word, get, rel, bump, ensure, escalate, end, whyOf, men, fightOdds, lawChance, wergild, oddsWord, tick, summary, seed, bloodshed, theyFall, slain, tollOf, edge, natureOf, directory, NATURES, bond, shiftBond, NQ_STAGE };
 })();

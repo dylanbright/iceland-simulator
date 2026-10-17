@@ -45,7 +45,7 @@
           h('div', { class: 'nbr-meta' }, [`${tier(n.tier)}`, n.goði ? 'a goði' : null, n.nature ? n.nature : null].filter(Boolean).join(', ') + (n.nature ? '' : '; you do not know his temper yet')),
           n.why ? h('div', { class: 'nbr-meta' }, n.why) : null,
           (n.likes && n.likes.length) || (n.dislikes && n.dislikes.length) ? h('div', { class: 'nbr-meta' }, [n.likes.length ? `Friends with ${n.likes.join(' and ')}.` : null, n.dislikes.length ? `At odds with ${n.dislikes.join(' and ')}.` : null].filter(Boolean).join(' ')) : null,
-          n.feud ? h('div', { class: 'nbr-feud-line' }, `Feud: ${n.feud}${n.owed ? `. He may claim about ${fmt(n.owed)} ells from you` : ''}.`) : null);
+          n.feud ? h('div', { class: 'nbr-feud-line' }, `Feud: ${n.feud}${n.owed ? `. He may claim about ${fmt(n.owed)} ells from you` : ''}${n.toll ? `. The dead: ${n.toll.you} of yours, ${n.toll.them} of theirs` : ''}${n.truce ? '. A truce holds for now' : ''}.`) : null);
       })),
       h('div', { class: 'nbr-actions' }, h('button', { class: 'btn', type: 'button', onclick: close }, 'Close')));
     return dlg;
