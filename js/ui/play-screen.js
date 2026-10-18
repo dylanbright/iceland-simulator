@@ -208,7 +208,7 @@
       const sum = h('span', { class: 'fold-sum' });
       reg(() => {
         const r = sumFn();
-        sum.replaceChildren(...[h('span', null, r.text), r.warn ? h('span', { class: 'fold-warn' }, r.warn) : null].filter(Boolean));
+        sum.replaceChildren(...[h('span', null, r.text), r.warn ? h('span', { class: 'fold-warn' }, r.warn) : null, r.sub ? h('span', { class: 'fold-sub' }, r.sub) : null].filter(Boolean));
       });
       det.append(h('summary', null, h('span', { class: 'fold-title' }, title), sum, h('span', { class: 'fold-act', 'aria-hidden': 'true' })),
         h('div', { class: 'fold-body' }, body));
@@ -290,7 +290,11 @@
         .concat((plan.sellHorseIds || []).map((id) => (state.stable.find((x) => x.id === id) || {}).name).filter(Boolean));
       const buy = herd.map(([k]) => k).filter((k) => plan.buy[k]).map((k) => animal(k, plan.buy[k]));
       const xs = [cull.length && 'slaughter ' + list(cull), sell.length && 'sell ' + list(sell), buy.length && 'buy ' + list(buy)].filter(Boolean);
-      return { text: xs.length ? cap(xs.join('; ')) : 'No changes to the herd' };
+      const herdLine = (g) => herd.map(([k]) => animal(k, g(k))).join(', ');
+      const after = (k) => Math.max(0, f[k] - (plan.cull[k] || 0) - (k === 'horses' ? (plan.sellHorseIds || []).length : plan.sell[k] || 0) + (plan.buy[k] || 0));
+      const changed = herd.some(([k]) => after(k) !== f[k]);
+      return { text: xs.length ? cap(xs.join('; ')) : 'No changes to the herd',
+        sub: `Herd: ${herdLine((k) => f[k])}${changed ? ` → ${herdLine(after)}` : ''}` };
     }, [
       teach ? h('p', { class: 'sec-note' }, 'A slaughtered cow feeds four people for a season and a sheep feeds less than one. Every animal you keep needs hay all winter. A horse sells for what it is worth, and you cannot tell how good a bought horse is until it is yours.') : null,
       herdGrid, horseBox, marketNote,
