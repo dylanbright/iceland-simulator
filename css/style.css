@@ -10,6 +10,7 @@
   --stone: #4f5a56;      /* secondary text */
   --lichen: #8d9786;     /* thread, quiet marks */
   --madder: #982821;     /* Honor, and only Honor */
+  --ochre: #8a5a0c;      /* a warning: the plan falls short */
   --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Cambria, Georgia, serif;
   --sans: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
   --measure: 38rem;
@@ -22,6 +23,7 @@
     --stone: #a3aaa2;
     --lichen: #6c7667;
     --madder: #d2594e;
+    --ochre: #d9a441;
   }
 }
 
@@ -346,8 +348,63 @@ button, input { font: inherit; color: inherit; }
 .nbr-item.bad2 .nbr-word, .nbr-item.bad .nbr-word { color: inherit; font-weight: 600; }
 .nbr-actions { text-align: right; }
 .ledger-foot { margin-top: 1.5rem; }
-.dock-inner .nbr-btn { margin-left: auto; margin-right: 0.75rem; }
+.dock-btns { display: flex; align-items: center; gap: 0.6rem; margin-left: auto; }
 .horse-sale { margin: 0.8rem 0 0; }
 .horse-sale h3 { margin: 0 0 0.4rem; }
 .horse-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.4rem; }
 .horse-price { color: var(--stone); font-style: italic; }
+
+/* ---------- the plan as folded lines ---------- */
+.plan-hint { font-family: var(--sans); font-size: 0.8rem; color: var(--stone); margin: 0.7rem 0 0; }
+.folds { margin-top: 1.4rem; border-top: 1px solid var(--fog-deep); }
+.folds .plan-sec { margin: 0; padding: 0; border-top: 0; border-bottom: 1px solid var(--fog-deep); }
+.fold > summary, .plan-line { display: grid; grid-template-columns: 9.5rem minmax(0, 1fr) auto; gap: 0.3rem 1rem; align-items: baseline; padding: 0.85rem 0.25rem; list-style: none; }
+.fold > summary { cursor: pointer; }
+.fold > summary::-webkit-details-marker { display: none; }
+.fold > summary:hover { background: var(--fog-deep); }
+.fold-title { font-weight: 600; font-size: 1.05rem; }
+.fold-sum { font-family: var(--sans); font-size: 0.92rem; color: var(--stone); line-height: 1.4; }
+.fold-sum > span:first-child { color: var(--basalt); }
+.plan-line .fold-sum { color: var(--stone); }
+.fold-warn { display: inline-block; margin-left: 0.6rem; color: var(--ochre); font-weight: 600; }
+.fold-warn::before { content: "· "; color: var(--stone); font-weight: 400; }
+.fold-act { font-family: var(--sans); font-size: 0.82rem; color: var(--stone); text-decoration: underline; text-underline-offset: 3px; }
+.fold-act::after { content: "Change"; }
+.fold[open] .fold-act::after { content: "Done"; }
+.fold[open] > summary { border-bottom: 1px dashed var(--fog-deep); }
+.fold-body { padding: 0.4rem 0.25rem 1.1rem; }
+.fold-body > .sec-note:first-child { margin-top: 0.5rem; }
+.fold-body h3 { margin: 1.1rem 0 0.4rem; font-size: 1rem; font-weight: 600; font-style: italic; }
+
+.herd-grid { display: grid; margin: 0.4rem 0 0.2rem; }
+.hg-row { display: grid; grid-template-columns: 5.5rem 3rem 6.5rem repeat(3, minmax(0, 1fr)); gap: 0.4rem; align-items: center; padding: 0.45rem 0; border-bottom: 1px solid var(--fog-deep); }
+.hg-head { font-family: var(--sans); font-size: 0.78rem; color: var(--stone); padding-bottom: 0.25rem; }
+.hg-have, .hg-price { font-family: var(--sans); font-size: 0.88rem; font-variant-numeric: tabular-nums; color: var(--stone); }
+.hg-have { color: var(--basalt); }
+.hg-ctl { display: flex; justify-content: center; }
+.herd-grid .step-btn { width: 2.1rem; height: 2.1rem; }
+.herd-grid .step-val { min-width: 2.4rem; height: 2.1rem; line-height: 2rem; }
+.btn-small { padding: 0.35rem 0.7rem; font-size: 0.85rem; }
+.horse-list { list-style: none; margin: 0.5rem 0 0; padding: 0; display: grid; gap: 0.25rem; }
+.horse-line { display: grid; grid-template-columns: auto 6rem 1fr auto; gap: 0.6rem; align-items: center; padding: 0.35rem 0.5rem; border: 1px solid var(--fog-deep); border-radius: 3px; cursor: pointer; }
+.horse-line:has(input:checked) { border-color: var(--basalt); background: var(--fog-deep); }
+.horse-stats { font-family: var(--sans); font-size: 0.85rem; color: var(--stone); }
+.horse-line .horse-price { font-family: var(--sans); font-size: 0.85rem; font-style: normal; font-variant-numeric: tabular-nums; }
+.market-note:empty { display: none; }
+.market-note { margin-top: 0.6rem; font-size: 0.88rem; }
+
+.chip.warn b, .chip.warn { color: var(--ochre); }
+.chip.bad { color: var(--ochre); font-weight: 600; }
+.chip.bad b { color: var(--ochre); text-decoration: underline; text-underline-offset: 3px; }
+.ledger.in-dialog { position: static; max-height: none; overflow: visible; padding: 0; }
+
+@media (max-width: 40rem) {
+  .fold > summary, .plan-line { grid-template-columns: minmax(0, 1fr) auto; }
+  .fold-sum { grid-column: 1 / -1; grid-row: 2; }
+  .hg-row { grid-template-columns: 4.2rem 2rem repeat(3, minmax(0, 1fr)); }
+  .hg-price { display: none; }
+  .herd-grid .step-btn { width: 1.9rem; }
+  .herd-grid .step-val { min-width: 1.9rem; }
+  .horse-line { grid-template-columns: auto 1fr auto; }
+  .horse-stats { display: none; }
+}

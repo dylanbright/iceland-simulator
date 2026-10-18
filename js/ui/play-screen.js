@@ -93,15 +93,19 @@
       groups.map(row));
   }
 
-  function ledger(state, extraTop) {
-    const f = state.farm, head = IS.Game.head(state);
-    const honor = head.attrs.honor;
+  function standingSec(state) {
+    const head = IS.Game.head(state), honor = head.attrs.honor;
     const bonus = state.household.wives.reduce((m, id) => Math.max(m, R.beautyHonorBonus(state.people[id].attrs.beauty)), 0);
-    const standing = h('section', null,
+    return h('section', null,
       h('h2', null, 'Your standing'),
       h('div', { class: 'honor-figure' }, h('span', { class: 'n' }, String(Math.round(honor))), h('span', { class: 'w' }, 'Honor, ' + honorWord(honor))),
       h('div', { class: 'honor-bar', role: 'img', 'aria-label': 'Honor ' + Math.round(honor) + ' of 100' }, h('span', { style: { width: honor + '%' } })),
       bonus > 0.5 ? h('p', { class: 'honor-note' }, `At feasts and in court your wife's beauty adds about ${Math.round(bonus)}.`) : null);
+  }
+
+  function ledger(state, extraTop) {
+    const f = state.farm;
+    const standing = standingSec(state);
     const farm = h('section', null,
       h('h2', null, f.name),
       h('dl', { class: 'stock' },
@@ -130,7 +134,25 @@
       state.families && IS.Feud && !extraTop ? h('div', { class: 'ledger-foot' }, neighborsButton(state)) : null);
   }
 
+  /** The farm, the household, the horses and what follows you, in a dialog (the plan screen keeps only the outlook beside it). */
+  function farmButton(state) {
+    return h('button', { class: 'btn nbr-btn', type: 'button', onclick: () => {
+      const dlg = h('dialog', { class: 'nbr-dialog farm-dialog', 'aria-label': 'Your farm and household' });
+      const close = () => { try { dlg.close(); } catch (e) { /* closed */ } dlg.remove(); };
+      dlg.addEventListener('close', () => dlg.remove());
+      dlg.addEventListener('click', (e) => { if (e.target === dlg) close(); });
+      const l = ledger(state, h('span'));
+      l.className = 'ledger in-dialog';
+      l.firstChild.remove(); l.firstChild.remove(); // the placeholder, and the standing (already on the page)
+      dlg.append(l, h('div', { class: 'nbr-actions' }, h('button', { class: 'btn', type: 'button', onclick: close }, 'Close')));
+      document.body.appendChild(dlg);
+      if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', '');
+      dlg.scrollTop = 0;
+    } }, 'Farm');
+  }
+
   /* ---------- planning ---------- */
+  const OPEN = new Set(); // which plan sections the player has left open, kept across seasons
   function awayView(state, ctl) {
     const x = state.expedition, d = IS.Raid.DEST[x.dest], dep = state.people[x.deputyId];
     const main = h('main', { class: 'report' },
@@ -177,72 +199,114 @@
         h('div', { class: 'row-ctl' }, control, yieldFn ? liveText('span', 'row-yield', yieldFn) : null));
     }
 
+    /* --- folding sections: a one-line summary, opened only to change it --- */
+    const teach = state.turn < 4; // the first two years explain themselves; after that, only numbers
+    function fold(key, title, sumFn, body) {
+      const det = h('details', { class: 'plan-sec fold' });
+      if (OPEN.has(S + key)) det.open = true;
+      det.addEventListener('toggle', () => { if (det.open) OPEN.add(S + key); else OPEN.delete(S + key); });
+      const sum = h('span', { class: 'fold-sum' });
+      reg(() => {
+        const r = sumFn();
+        sum.replaceChildren(...[h('span', null, r.text), r.warn ? h('span', { class: 'fold-warn' }, r.warn) : null].filter(Boolean));
+      });
+      det.append(h('summary', null, h('span', { class: 'fold-title' }, title), sum, h('span', { class: 'fold-act', 'aria-hidden': 'true' })),
+        h('div', { class: 'fold-body' }, body));
+      return det;
+    }
+    const list = (xs) => (xs.length <= 1 ? xs.join('') : xs.slice(0, -1).join(', ') + ' and ' + xs[xs.length - 1]);
+    const nOf = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+    const animal = (k, n) => (k === 'cattle' ? nOf(n, 'cow', 'cattle') : k === 'sheep' ? nOf(n, 'sheep', 'sheep') : nOf(n, 'horse', 'horses'));
+
     /* --- labour --- */
     const setting = f.setting;
     const fishName = setting === 'coast' ? 'Fishing and fowling' : setting === 'river' ? 'Salmon and trout' : 'Fowling and lake fishing';
     const rate = (S === 'summer' ? C.FISH_SUMMER : C.FISH_WINTER)[setting];
     const L = {
-      hay: ['Haymaking', () => `A hand cuts about ${C.HAY_PER_HAND} tons. Your fields give at most ${t1(out.rep.hayCap || 0)} tons.`, () => `${t1(out.rep.hayMade || 0)} tons`],
-      fish: [fishName, () => `About ${rate} rations a hand${S === 'winter' ? ', less in a hard winter' : ''}.`, () => `${t1(out.rep.fish || 0)} rations`],
-      weave: ['Weaving', () => `A hand weaves about ${C.WEAVE_PER_HAND} ells of cloth. You have ${fmt(f.wool)} ells of wool to work.`, () => `${fmt(out.rep.woven || 0)} ells`],
-      craft: ['Crafts and trade goods', () => `About ${S === 'summer' ? C.CRAFT_SUMMER : C.CRAFT_PER_HAND} ells a hand.`, () => `${fmt(out.rep.crafted || 0)} ells`],
-      build: ['Repairs and manuring', () => 'Roofs, walls and the home field. Keeps the farm in good order.', () => `buildings ${conditionWord(out.res.farm.condition)}`],
+      hay: ['Haymaking', 'haymaking', () => `About ${C.HAY_PER_HAND} tons a hand. Your fields give at most ${t1(out.rep.hayCap || 0)}.`, () => `${t1(out.rep.hayMade || 0)} tons`],
+      fish: [fishName, 'fishing', () => `About ${rate} rations a hand${S === 'winter' ? ', less in a hard winter' : ''}.`, () => `${t1(out.rep.fish || 0)} rations`],
+      weave: ['Weaving', 'weaving', () => `About ${C.WEAVE_PER_HAND} ells a hand. ${fmt(f.wool)} ells of wool to work.`, () => `${fmt(out.rep.woven || 0)} ells`],
+      craft: ['Crafts and trade goods', 'crafts', () => `About ${S === 'summer' ? C.CRAFT_SUMMER : C.CRAFT_PER_HAND} ells a hand.`, () => `${fmt(out.rep.crafted || 0)} ells`],
+      build: ['Repairs and manuring', 'repairs', teach ? () => 'Roofs, walls and the home field. Keeps the farm in good order.' : null, () => `buildings ${conditionWord(out.res.farm.condition)}`],
     };
-    const work = h('section', { class: 'plan-sec' },
-      h('h2', null, 'Work'),
-      liveText('p', 'sec-note', () => {
-        const wf = out.res.wf;
-        return `Herd chores take about ${t1(wf.chores)} hands' worth of your household's labour. ${wf.hands} hands are free to give out, ${unassigned()} not yet given.`;
-      }),
-      E.CATS[S].map((c) => row(L[c][0], L[c][1], stepper({
+    const work = fold('work', 'Work', () => {
+      const xs = E.CATS[S].filter((c) => plan.labour[c] > 0).map((c) => `${plan.labour[c]} ${L[c][1]}`);
+      const idle = unassigned();
+      return { text: xs.length ? list(xs) : 'Nobody given work', warn: idle ? `${nOf(idle, 'hand', 'hands')} idle` : null };
+    }, [
+      teach ? liveText('p', 'sec-note', () => { const wf = out.res.wf; return `Herd chores take about ${t1(wf.chores)} hands' worth of your household's labour. ${wf.hands} hands are free to give out, ${unassigned()} not yet given.`; })
+        : liveText('p', 'sec-note', () => `${out.res.wf.hands} hands free after herd chores, ${unassigned()} not yet given.`),
+      E.CATS[S].map((c) => row(L[c][0], L[c][2], stepper({
         aria: L[c][0], get: () => plan.labour[c], set: (v) => { plan.labour[c] = v; }, max: () => plan.labour[c] + unassigned(),
-      }), L[c][2])));
+      }), L[c][3])),
+    ]);
 
-    /* --- livestock --- */
-    const herd = [['cattle', 'Cattle', 'cattle'], ['sheep', 'Sheep', 'sheep'], ['horses', 'Horses', 'horses']];
-    const herdSec = h('section', { class: 'plan-sec' },
-      h('h2', null, 'Livestock'),
-      h('p', { class: 'sec-note' }, 'A slaughtered cow feeds four people for a season and a sheep feeds less than one. Sold animals bring cash. Every animal you keep needs hay all winter.'),
-      herd.map(([key, label, priceKey]) => h('div', { class: 'stock-row' },
-        h('div', { class: 'row-text' }, h('div', { class: 'row-label' }, label), liveText('div', 'row-hint', () => {
-          const ns = plan.sell[key], nb = plan.buy[key], m = (prices && prices[priceKey]) || 1;
-          let t = key === 'horses' ? `You have ${f[key]}. A horse sells for what it is worth: swift, strong horses fetch more. Costs about ${px(priceKey, true)} to buy, and you cannot tell how good a horse is until it is yours.`
-            : `You have ${f[key]}. Sells for ${px(priceKey, false)} ells, costs ${px(priceKey, true)} to buy.`;
-          if (key !== 'horses' && ns > 1) t += ` Selling ${ns} brings about ${fmt(E.lot(priceKey, ns, false, m).total)} ells in all (about ${Math.round(E.lot(priceKey, ns, false, m).avg)} each): a crowded market pays less.`;
-          if (nb > 1) t += ` Buying ${nb} costs about ${fmt(E.lot(priceKey, nb, true, m).total)} ells in all.`;
-          return t;
-        })),
-        h('div', { class: 'stock-ctls' },
-          key === 'horses' ? null : h('label', { class: 'mini' }, h('span', null, 'Slaughter'), stepper({ aria: 'Slaughter ' + label.toLowerCase(), get: () => plan.cull[key], set: (v) => { plan.cull[key] = v; }, max: () => f[key] - plan.sell[key] })),
-          key === 'horses' ? null : h('label', { class: 'mini' }, h('span', null, 'Sell'), stepper({ aria: 'Sell ' + label.toLowerCase(), get: () => plan.sell[key], set: (v) => { plan.sell[key] = v; }, max: () => f[key] - (plan.cull[key] || 0) })),
-          h('label', { class: 'mini' }, h('span', null, 'Buy'), stepper({ aria: 'Buy ' + label.toLowerCase(), get: () => plan.buy[key], set: (v) => { plan.buy[key] = v; }, max: () => 40 }))))),
-      // each horse is its own animal: pick the ones to sell
-      (state.stable && state.stable.length) ? h('div', { class: 'horse-sale' },
-        h('h3', null, 'Your horses: choose any to sell'),
-        h('ul', { class: 'horse-list' }, state.stable.slice().sort((a, b) => IS.Stable.worth(b) - IS.Stable.worth(a)).map((x) => {
-          const cb = h('input', { type: 'checkbox', onchange: (e) => {
-            const set = new Set(plan.sellHorseIds || []);
-            if (e.target.checked) set.add(x.id); else set.delete(x.id);
-            plan.sellHorseIds = [...set]; plan.sell.horses = plan.sellHorseIds.length; update();
-          } });
-          if ((plan.sellHorseIds || []).includes(x.id)) cb.checked = true;
-          const price = h('span', { class: 'horse-price' });
-          reg(() => {
-            const ids = plan.sellHorseIds || [], mult = (prices && prices.horses) || 1;
-            if (ids.includes(x.id)) { const e = E.horseLot(state.stable.filter((y) => ids.includes(y.id)), mult).each.find((z) => z.id === x.id); price.textContent = `sells for ${e ? e.price : '?'} ells`; }
-            else price.textContent = `would fetch about ${E.horseLot([x], mult).total} ells`;
-          });
-          return h('li', null, h('label', { class: 'check' }, cb, h('span', null, h('b', null, x.name), ` Speed ${x.speed}, Strength ${x.strength}`, ' ', price)));
-        }))) : null);
+    /* --- livestock: one grid --- */
+    let showHorses = (plan.sellHorseIds || []).length > 0;
+    const horseBox = h('div', { class: 'horse-sale' });
+    const drawHorses = () => {
+      if (!showHorses || !(state.stable && state.stable.length)) { horseBox.replaceChildren(); return; }
+      horseBox.replaceChildren(h('ul', { class: 'horse-list' }, state.stable.slice().sort((a, b) => IS.Stable.worth(b) - IS.Stable.worth(a)).map((x) => {
+        const cb = h('input', { type: 'checkbox', onchange: (e) => {
+          const set = new Set(plan.sellHorseIds || []);
+          if (e.target.checked) set.add(x.id); else set.delete(x.id);
+          plan.sellHorseIds = [...set]; plan.sell.horses = plan.sellHorseIds.length; update();
+        } });
+        if ((plan.sellHorseIds || []).includes(x.id)) cb.checked = true;
+        const price = h('span', { class: 'horse-price' });
+        reg(() => {
+          const ids = plan.sellHorseIds || [], mult = (prices && prices.horses) || 1;
+          if (ids.includes(x.id)) { const e = E.horseLot(state.stable.filter((y) => ids.includes(y.id)), mult).each.find((z) => z.id === x.id); price.textContent = `${e ? e.price : '?'} ells`; }
+          else price.textContent = `about ${E.horseLot([x], mult).total} ells`;
+        });
+        return h('li', null, h('label', { class: 'horse-line' }, cb, h('b', null, x.name), h('span', { class: 'horse-stats' }, `speed ${x.speed}, strength ${x.strength}`), price));
+      })));
+      update();
+    };
+    const horseToggle = h('button', { type: 'button', class: 'btn btn-small', onclick: () => { showHorses = !showHorses; drawHorses(); } });
+    reg(() => { const n = (plan.sellHorseIds || []).length; horseToggle.textContent = n ? `${n} chosen` : showHorses ? 'Hide' : 'Choose'; horseToggle.setAttribute('aria-expanded', String(showHorses)); });
+    const herd = [['cattle', 'Cattle'], ['sheep', 'Sheep'], ['horses', 'Horses']];
+    const cell = (cls, ...kids) => h('div', { class: 'hg-cell ' + cls }, ...kids);
+    const herdGrid = h('div', { class: 'herd-grid', role: 'table', 'aria-label': 'Livestock' },
+      h('div', { class: 'hg-row hg-head', role: 'row' }, cell('hg-name', ''), cell('hg-have', 'Have'), cell('hg-price', 'Sell / buy'), cell('hg-ctl', 'Slaughter'), cell('hg-ctl', 'Sell'), cell('hg-ctl', 'Buy')),
+      herd.map(([key, label]) => h('div', { class: 'hg-row', role: 'row' },
+        cell('hg-name', h('b', null, label)),
+        cell('hg-have', String(f[key])),
+        cell('hg-price', key === 'horses' ? `by worth / ${px('horses', true)}` : `${px(key, false)} / ${px(key, true)}`),
+        cell('hg-ctl', key === 'horses' ? '' : stepper({ aria: 'Slaughter ' + label.toLowerCase(), get: () => plan.cull[key], set: (v) => { plan.cull[key] = v; }, max: () => f[key] - plan.sell[key] })),
+        cell('hg-ctl', key === 'horses' ? (state.stable && state.stable.length ? horseToggle : '') : stepper({ aria: 'Sell ' + label.toLowerCase(), get: () => plan.sell[key], set: (v) => { plan.sell[key] = v; }, max: () => f[key] - (plan.cull[key] || 0) })),
+        cell('hg-ctl', stepper({ aria: 'Buy ' + label.toLowerCase(), get: () => plan.buy[key], set: (v) => { plan.buy[key] = v; }, max: () => 40 })))));
+    const marketNote = liveText('p', 'sec-note market-note', () => {
+      const xs = [];
+      for (const k of ['cattle', 'sheep']) {
+        const m = (prices && prices[k]) || 1;
+        if (plan.sell[k] > 1) { const l = E.lot(k, plan.sell[k], false, m); xs.push(`Selling ${animal(k, plan.sell[k])} brings about ${fmt(l.total)} ells (${Math.round(l.avg)} each).`); }
+      }
+      return xs.length ? xs.join(' ') + ' A crowded market pays less.' : '';
+    });
+    const herdSec = fold('herd', 'Livestock', () => {
+      const cull = ['cattle', 'sheep'].filter((k) => plan.cull[k]).map((k) => animal(k, plan.cull[k]));
+      const sell = ['cattle', 'sheep'].filter((k) => plan.sell[k]).map((k) => animal(k, plan.sell[k]))
+        .concat((plan.sellHorseIds || []).map((id) => (state.stable.find((x) => x.id === id) || {}).name).filter(Boolean));
+      const buy = herd.map(([k]) => k).filter((k) => plan.buy[k]).map((k) => animal(k, plan.buy[k]));
+      const xs = [cull.length && 'slaughter ' + list(cull), sell.length && 'sell ' + list(sell), buy.length && 'buy ' + list(buy)].filter(Boolean);
+      return { text: xs.length ? cap(xs.join('; ')) : 'No changes to the herd' };
+    }, [
+      teach ? h('p', { class: 'sec-note' }, 'A slaughtered cow feeds four people for a season and a sheep feeds less than one. Every animal you keep needs hay all winter. A horse sells for what it is worth, and you cannot tell how good a bought horse is until it is yours.') : null,
+      herdGrid, horseBox, marketNote,
+    ]);
+    drawHorses();
 
-    /* --- goods --- */
-    const goods = h('section', { class: 'plan-sec' },
-      h('h2', null, 'Buying in'),
+    /* --- buying in --- */
+    const goods = fold('goods', 'Buying in', () => {
+      const xs = [plan.buy.hay && `${plan.buy.hay} t of hay`, plan.buy.food && `${plan.buy.food} rations of food`].filter(Boolean);
+      return { text: xs.length ? 'Buy ' + list(xs) : 'Nothing bought' };
+    }, [
       row('Hay', `${px('hay', true)} ells a ton.`, stepper({ aria: 'Buy hay', get: () => plan.buy.hay, set: (v) => { plan.buy.hay = v; }, max: () => 200, step: 5, fmt: (v) => v + ' t' })),
-      row('Food', `${px('food', true)} ells a ration. Flour, malt and dried fish from merchants.`, stepper({ aria: 'Buy food', get: () => plan.buy.food, set: (v) => { plan.buy.food = v; }, max: () => 100, step: 2 })),
-      row('Land', `${fmt(E.landPrice(f, prices && prices.land))} ells buys ${C.PARCEL_TONS} more tons of hayfield.`, stepper({ aria: 'Buy land', get: () => plan.buy.land, set: (v) => { plan.buy.land = v; }, max: () => 3, fmt: (v) => v + (v === 1 ? ' parcel' : ' parcels') })));
+      row('Food', `${px('food', true)} ells a ration${teach ? '. Flour, malt and dried fish from merchants.' : '.'}`, stepper({ aria: 'Buy food', get: () => plan.buy.food, set: (v) => { plan.buy.food = v; }, max: () => 100, step: 2 })),
+    ]);
 
-    /* --- household --- */
+    /* --- the house: the table, and the thralls --- */
     const radios = (name, opts, get, set) => h('div', { class: 'choices', role: 'radiogroup', 'aria-label': name }, opts.map((o) => {
       const input = h('input', { type: 'radio', name: name + '-' + S, value: o.value, onchange: () => { set(o.value); update(); } });
       if (get() === o.value) input.checked = true;
@@ -255,20 +319,32 @@
       const gain = C.HOSP.honor[v] * winterMult * glow;
       return { value: v, label, desc: v === 'plain' ? 'No more than custom asks. No cost.' : `${fmt(cost)} ells. About ${signed(gain, true)} Honor.` };
     };
-    const people = h('section', { class: 'plan-sec' },
-      h('h2', null, 'The house'),
-      h('h3', null, S === 'winter' ? 'The Jól table' : 'Hospitality'),
+    const HOSP_WORD = { plain: 'Plain table', open: 'Open hand', lavish: 'Lavish feast' };
+    const hasThralls = state.household.thralls.length > 0;
+    const people = fold('house', S === 'winter' ? 'The Jól table' : 'Hospitality', () => ({
+      text: HOSP_WORD[plan.hospitality] + (hasThralls ? `; thralls treated ${plan.treatment}ly` : ''),
+    }), [
       radios('hospitality', [hospOpt('plain', 'Plain table'), hospOpt('open', 'Open hand'), hospOpt('lavish', 'Lavish feast')], () => plan.hospitality, (v) => { plan.hospitality = v; }),
-      state.household.thralls.length ? [h('h3', null, 'Your thralls'), radios('treatment', [
+      hasThralls ? [h('h3', null, 'Your thralls'), radios('treatment', [
         { value: 'harsh', label: 'Harsh', desc: 'They work about a tenth harder. Resentment climbs.' },
         { value: 'fair', label: 'Fair', desc: 'What custom allows.' },
         { value: 'kind', label: 'Kind', desc: 'They eat better, a quarter more food. Resentment eases.' },
       ], () => plan.treatment, (v) => { plan.treatment = v; })] : null,
-      h('h3', null, 'Taking people on'),
-      row('Hire servants', `${C.HIRE_FEE} ells to take one on, then ${C.WAGE} ells a season. You have ${state.household.servants.length}.`, stepper({ aria: 'Hire servants', get: () => plan.buy.servants, set: (v) => { plan.buy.servants = v; }, max: () => 3 })),
-      row('Buy a thrall', `${px('thrall', true)} ells each. You have ${state.household.thralls.length}. Too many thralls to free men invites revolt.`, stepper({ aria: 'Buy thralls', get: () => plan.buy.thralls, set: (v) => { plan.buy.thralls = v; }, max: () => 3 })),
-      state.household.thralls.length ? row('Sell a thrall', `${px('thrall', false)} ells each. The most resentful go first. You have ${state.household.thralls.length}.`, stepper({ aria: 'Sell thralls', get: () => plan.sell.thralls, set: (v) => { plan.sell.thralls = v; }, max: () => state.household.thralls.length })) : null,
-      E.canSeekWife(state) ? h('label', { class: 'check' },
+    ]);
+
+    /* --- other dealings: people, land, marriage. Rare, so folded away --- */
+    const canWife = E.canSeekWife(state), canConc = IS.Marriage.canTakeConcubine(state), heirNeed = IS.Marriage.needsHeir(state);
+    const deals = fold('deals', 'Other dealings', () => {
+      const xs = [plan.buy.servants && `hire ${nOf(plan.buy.servants, 'servant', 'servants')}`, plan.buy.thralls && `buy ${nOf(plan.buy.thralls, 'thrall', 'thralls')}`,
+        plan.sell.thralls && `sell ${nOf(plan.sell.thralls, 'thrall', 'thralls')}`, plan.buy.land && `buy ${nOf(plan.buy.land, 'parcel', 'parcels')} of land`,
+        plan.seekWife && 'court a wife', plan.concubine && 'take a concubine'].filter(Boolean);
+      return { text: xs.length ? cap(list(xs)) : 'Servants, thralls, land and marriage', warn: heirNeed && canWife && !plan.seekWife ? 'You have no heir' : null };
+    }, [
+      row('Hire servants', `${C.HIRE_FEE} ells to take one on, then ${C.WAGE} a season. You have ${state.household.servants.length}.`, stepper({ aria: 'Hire servants', get: () => plan.buy.servants, set: (v) => { plan.buy.servants = v; }, max: () => 3 })),
+      row('Buy a thrall', `${px('thrall', true)} ells each. You have ${state.household.thralls.length}.${teach ? ' Too many thralls to free men invites revolt.' : ''}`, stepper({ aria: 'Buy thralls', get: () => plan.buy.thralls, set: (v) => { plan.buy.thralls = v; }, max: () => 3 })),
+      hasThralls ? row('Sell a thrall', `${px('thrall', false)} ells each. The most resentful go first.`, stepper({ aria: 'Sell thralls', get: () => plan.sell.thralls, set: (v) => { plan.sell.thralls = v; }, max: () => state.household.thralls.length })) : null,
+      row('Land', `${fmt(E.landPrice(f, prices && prices.land))} ells buys ${C.PARCEL_TONS} more tons of hayfield.`, stepper({ aria: 'Buy land', get: () => plan.buy.land, set: (v) => { plan.buy.land = v; }, max: () => 3, fmt: (v) => v + (v === 1 ? ' parcel' : ' parcels') })),
+      canWife ? h('label', { class: 'check' },
         (() => { const i = h('input', { type: 'checkbox', onchange: (e) => { plan.seekWife = e.target.checked; update(); } }); if (plan.seekWife) i.checked = true; return i; })(),
         h('span', null, h('b', null, state.household.wives.length ? 'Court a second wife this summer. ' : 'Court a wife this summer. '),
           (() => {
@@ -277,49 +353,58 @@
               (w.up.length ? `, helped by ${w.up.join(' and ')}` : '') + (w.down.length ? `${w.up.length ? ', but' : ','} hurt by ${w.down.join(' and ')}` : '') + '.';
           })(),
           state.household.wives.length ? ' She would bring a dowry and legitimate children, and your wife will not like it.' : '',
-          IS.Marriage.needsHeir(state) ? ' You have no son and no wife young enough to bear one.' : '')) : null,
-      IS.Marriage.canTakeConcubine(state) ? h('label', { class: 'check' },
+          heirNeed ? ' You have no son and no wife young enough to bear one.' : '')) : null,
+      canConc ? h('label', { class: 'check' },
         (() => { const i = h('input', { type: 'checkbox', onchange: (e) => { plan.concubine = e.target.checked; update(); } }); if (plan.concubine) i.checked = true; return i; })(),
-        h('span', null, h('b', null, 'Take a concubine. '), `Gifts to her family cost ${fmt(C.concubine(tier))} ells. No dowry, and her sons are heirs only if you have no legitimate son.${state.household.wives.length ? ' Your wife will take it badly.' : ''}`)) : null);
+        h('span', null, h('b', null, 'Take a concubine. '), `Gifts to her family cost ${fmt(C.concubine(tier))} ells. No dowry, and her sons are heirs only if you have no legitimate son.${state.household.wives.length ? ' Your wife will take it badly.' : ''}`)) : null,
+    ]);
 
-    /* --- a raid --- */
+    /* --- a raid: one line until you can afford it --- */
     let raidSec = null;
     const R = IS.Raid;
     if (S === 'summer' && R.canRaid(state)) {
       const deps = R.deputies(state), total = R.cost(state), afford = E.cashOf(f) >= total;
-      const destBox = h('div', { class: 'choices', role: 'radiogroup', 'aria-label': 'Where to raid' });
-      const depBox = h('div', null);
-      const lootWord = (l) => (l >= 1900 ? 'immense' : l >= 1500 ? 'great' : l >= 1100 ? 'large' : 'fair');
-      const draw = () => {
-        const opt = (value, label, desc, dis) => {
-          const input = h('input', { type: 'radio', name: 'raiddest', value, disabled: dis, onchange: () => {
-            plan.raid = value ? { dest: value, deputyId: (plan.raid && plan.raid.deputyId) || deps[0].id } : null; update(); draw();
-          } });
-          if ((plan.raid ? plan.raid.dest : '') === value) input.checked = true;
-          return h('label', { class: 'choice' }, input, h('span', { class: 'choice-text' }, h('b', null, label), ' ', h('span', null, desc)));
+      const oath = state.vow && state.vow.status === 'sworn' ? state.vow : null;
+      if (!afford) {
+        raidSec = h('div', { class: 'plan-sec plan-line' }, h('span', { class: 'fold-title' }, 'A raid'),
+          h('span', { class: 'fold-sum' }, `${state.ship ? 'You cannot fit out a crew yet' : 'No ship yet'}: it costs ${fmt(total)} ells and you hold ${fmt(E.cashOf(f))} now.${oath ? ` Your oath to avenge ${oath.fallen} must wait.` : ''}`));
+      } else {
+        const destBox = h('div', { class: 'choices', role: 'radiogroup', 'aria-label': 'Where to raid' });
+        const depBox = h('div', null);
+        const lootWord = (l) => (l >= 1900 ? 'immense' : l >= 1500 ? 'great' : l >= 1100 ? 'large' : 'fair');
+        const draw = () => {
+          const opt = (value, label, desc) => {
+            const input = h('input', { type: 'radio', name: 'raiddest', value, onchange: () => {
+              plan.raid = value ? { dest: value, deputyId: (plan.raid && plan.raid.deputyId) || deps[0].id } : null; update(); draw();
+            } });
+            if ((plan.raid ? plan.raid.dest : '') === value) input.checked = true;
+            return h('label', { class: 'choice' }, input, h('span', { class: 'choice-text' }, h('b', null, label), ' ', h('span', null, desc)));
+          };
+          destBox.replaceChildren(opt('', 'Stay home', 'No raid this summer.'),
+            ...R.ORDER.map((id) => {
+              const d = R.DEST[id], pct = Math.round(R.deathEstimate(state, id, true) * 100);
+              const fav = state.favors && state.favors[id];
+              return opt(id, d.name, `${d.winter ? 'Away until next summer. ' : 'Home by autumn. '}About ${pct} in 100 of not returning. Plunder ${lootWord(d.loot)}.${fav ? ' Its king favors you.' : ''}${oath && oath.dest === id ? ` Your oath to avenge ${oath.fallen} draws you here.` : ''}`);
+            }));
+          depBox.replaceChildren(...(plan.raid ? [
+            h('h3', null, 'Who runs the farm while you are gone?'),
+            h('div', { class: 'choices', role: 'radiogroup', 'aria-label': 'Who runs the farm' }, deps.map((x) => {
+              const input = h('input', { type: 'radio', name: 'raiddep', value: x.id, onchange: () => { plan.raid.deputyId = x.id; update(); } });
+              if (plan.raid.deputyId === x.id) input.checked = true;
+              return h('label', { class: 'choice' }, input, h('span', { class: 'choice-text' }, h('b', null, x.name), ' ', h('span', null, `${x.role}, ${x.age}, husbandry ${x.husbandry}.`)));
+            })),
+            R.heirless(state) ? h('p', { class: 'sec-note' }, 'You have no son or brother to inherit. If you do not come back, the line ends.') : null].filter(Boolean) : []));
         };
-        destBox.replaceChildren(opt('', 'Stay home', 'No raid this summer.', false),
-          ...R.ORDER.map((id) => {
-            const d = R.DEST[id], pct = Math.round(R.deathEstimate(state, id, true) * 100);
-            const fav = state.favors && state.favors[id];
-            return opt(id, d.name, `${d.winter ? 'Away until next summer. ' : 'Home by autumn. '}About ${pct} in 100 of not returning. Plunder ${lootWord(d.loot)}.${fav ? ' Its king favors you.' : ''}${state.vow && state.vow.status === 'sworn' && state.vow.dest === id ? ` Your oath to avenge ${state.vow.fallen} draws you here.` : ''}${afford ? '' : ' You cannot afford the voyage yet.'}`, !afford);
-          }));
-        depBox.replaceChildren(...(plan.raid ? [
-          h('h3', null, 'Who runs the farm while you are gone?'),
-          h('div', { class: 'choices', role: 'radiogroup', 'aria-label': 'Who runs the farm' }, deps.map((x) => {
-            const input = h('input', { type: 'radio', name: 'raiddep', value: x.id, onchange: () => { plan.raid.deputyId = x.id; update(); } });
-            if (plan.raid.deputyId === x.id) input.checked = true;
-            return h('label', { class: 'choice' }, input, h('span', { class: 'choice-text' }, h('b', null, x.name), ' ', h('span', null, `${x.role}, ${x.age}, husbandry ${x.husbandry}. A poorer manager means a poorer harvest.`)));
-          })),
-          R.heirless(state) ? h('p', { class: 'sec-note' }, 'You have no son or brother to inherit. If you do not come back, the line ends.') : null].filter(Boolean) : []));
-      };
-      raidSec = h('section', { class: 'plan-sec plan-raid' },
-        h('h2', null, 'A raid'),
-        h('p', { class: 'sec-note' }, `Sail this summer and bring home plunder, captives and, perhaps, a foreign king's favor. You are not here to work the farm, and whether you come back rests on your Strength (${Math.round(head.attrs.strength)}). Further coasts pay more and kill more. ${state.ship ? 'You own a ship, so you only pay for the crew and outfitting' : `A ship costs ${fmt(R.SHIP_COST)} ells, then the crew and outfitting`}: ${fmt(total)} ells in all.`),
-        afford ? null : h('p', { class: 'raid-warn' }, h('b', null, state.ship ? 'You cannot afford to fit out a crew yet. ' : 'You cannot afford a ship yet. '),
-          `The ship and crew are paid for before anything else this summer, from the ${fmt(E.cashOf(f))} ells you hold now. You need ${fmt(total)}, so you are ${fmt(total - E.cashOf(f))} short. The cash figure at the bottom of the page is what you expect to have at the end of the season, after this plan's sales and spending, so it does not count. Save for a season, then come back.`),
-        destBox, depBox);
-      draw();
+        raidSec = fold('raid', 'A raid', () => {
+          if (!plan.raid) return { text: 'Staying home', warn: oath ? `your oath to avenge ${oath.fallen} waits` : null };
+          const dep = deps.find((x) => x.id === plan.raid.deputyId);
+          return { text: `Sail for ${R.DEST[plan.raid.dest].short || R.DEST[plan.raid.dest].name}${dep ? `; ${dep.name.split(' ')[0]} runs the farm` : ''}` };
+        }, [
+          h('p', { class: 'sec-note' }, `${teach ? "Sail this summer and bring home plunder, captives and, perhaps, a foreign king's favor. You are not here to work the farm. " : ''}Whether you come back rests on your Strength (${Math.round(head.attrs.strength)}). ${state.ship ? 'Crew and outfitting' : 'Ship, crew and outfitting'}: ${fmt(total)} ells, paid before anything else.`),
+          destBox, depBox,
+        ]);
+        draw();
+      }
     }
 
     /* --- outlook --- */
@@ -357,34 +442,59 @@
     };
     reg(rebuildOutlook);
 
-    /* --- dock --- */
+    /* --- dock: the three numbers that matter, coloured when the plan falls short --- */
     const dockChips = h('div', { class: 'dock-chips' });
     reg(() => {
       const o = out, n = o.needs, foodOk = o.rationHave >= o.rationNeed;
+      const hayCls = o.hayHave < n.mild ? 'chip bad' : o.hayHave < n.normal ? 'chip warn' : 'chip';
+      const cashCls = o.cashEnd < 0 ? 'chip bad' : 'chip';
       dockChips.replaceChildren(
-        h('span', { class: 'chip' }, 'Hay ', h('b', null, `${t1(o.hayHave)} / ${t1(n.normal)} t`)),
-        h('span', { class: 'chip' }, 'Food ', h('b', null, foodOk ? 'enough' : 'short')),
-        h('span', { class: 'chip' }, 'Cash at season’s end ', h('b', null, fmt(o.cashEnd))));
+        h('span', { class: hayCls }, 'Hay ', h('b', null, `${t1(o.hayHave)} / ${t1(n.normal)} t`)),
+        h('span', { class: foodOk ? 'chip' : 'chip bad' }, 'Food ', h('b', null, foodOk ? 'enough' : 'short')),
+        h('span', { class: cashCls }, 'Cash at season’s end ', h('b', null, fmt(o.cashEnd))));
     });
-    const dock = h('div', { class: 'dock' }, h('div', { class: 'dock-inner' }, dockChips, state.families && IS.Feud ? neighborsButton(state) : null,
-      h('button', { class: 'btn btn-primary', type: 'button', onclick: () => ctl.resolve(plan) }, S === 'summer' ? 'Carry out the summer' : 'Carry out the winter')));
+    const carry = () => {
+      // remember the routine part of the plan for "same as last season"; one-off dealings are not repeated
+      const keep = JSON.parse(JSON.stringify(plan));
+      delete keep.raid; delete keep.seekWife; delete keep.concubine;
+      keep.buy.land = 0; keep.buy.thralls = 0; keep.buy.servants = 0; keep.sell.thralls = 0; keep.sell.horses = 0; keep.sellHorseIds = [];
+      state.seasonPlans = Object.assign({}, state.seasonPlans, { [S]: keep });
+      ctl.resolve(plan);
+    };
+    const dock = h('div', { class: 'dock' }, h('div', { class: 'dock-inner' }, dockChips,
+      h('div', { class: 'dock-btns' }, farmButton(state), state.families && IS.Feud ? neighborsButton(state) : null,
+        h('button', { class: 'btn btn-primary', type: 'button', title: 'Enter', onclick: carry }, S === 'summer' ? 'Carry out the summer' : 'Carry out the winter'))));
 
     /* --- assemble --- */
     const beats = IS.Calendar.turnInfo(state.turn, state.startYear).beats.map((b) => b.name).join(', ');
+    const last = state.seasonPlans && state.seasonPlans[S];
+    const sameAsLast = () => {
+      const p = JSON.parse(JSON.stringify(last));
+      for (const k of ['cattle', 'sheep']) { p.cull[k] = Math.min(p.cull[k] || 0, f[k]); p.sell[k] = Math.min(p.sell[k] || 0, f[k] - p.cull[k]); }
+      ctl.replan(p);
+    };
     const intro = h('section', { class: 'season-head' },
       h('h1', null, `${cap(S)} of ${year}`),
-      h('p', { class: 'omen' }, omen.text),
+      h('p', { class: 'omen' }, S === 'winter' && omen.winter ? omen.winter : omen.text),
       h('p', { class: 'beats' }, `This season: ${beats}.`),
       h('div', { class: 'plan-tools' },
-        h('button', { class: 'btn', type: 'button', onclick: () => ctl.replan(E.suggest(state)) }, 'Use the household’s usual plan'),
-        h('button', { class: 'btn', type: 'button', onclick: () => ctl.replan({ hospitality: plan.hospitality, treatment: plan.treatment }) }, 'Clear the plan')));
+        h('button', { class: 'btn', type: 'button', onclick: () => ctl.replan(E.suggest(state)) }, 'Usual plan'),
+        last ? h('button', { class: 'btn', type: 'button', onclick: sameAsLast }, `Same as last ${S}`) : null,
+        h('button', { class: 'btn', type: 'button', onclick: () => ctl.replan({ hospitality: plan.hospitality, treatment: plan.treatment }) }, 'Clear')),
+      h('p', { class: 'plan-hint' }, 'Open a line to change it. Enter carries out the plan.'));
 
-    const main = h('div', { class: 'main' }, intro, work, herdSec, goods, raidSec, people);
+    const main = h('div', { class: 'main' }, intro, h('div', { class: 'folds' }, work, herdSec, goods, raidSec, people, deals));
     const page = h('div', { class: 'page has-dock' }, bar(state, ctl, abandonButton(ctl)),
-      h('main', { class: 'layout' }, main, ledger(state, outlookBox)), dock);
+      h('main', { class: 'layout' }, main, h('aside', { class: 'ledger', 'aria-label': 'Outlook and standing' }, outlookBox, standingSec(state))), dock);
+    document.onkeydown = (e) => {
+      if (e.key !== 'Enter' || e.repeat || !document.body.contains(page) || document.querySelector('dialog[open]')) return;
+      if (e.target.closest && e.target.closest('button, input, summary, select, textarea, a')) return;
+      e.preventDefault(); carry();
+    };
     update();
     return page;
   }
+
 
   /* ---------- the season in review ---------- */
   function reportView(state, ctl) {
@@ -463,6 +573,7 @@
   }
 
   IS.ui.playScreen = function (state, ctl, initialPlan) {
+    document.onkeydown = null;
     if (state.mode === 'over') return overView(state, ctl);
     if (state.mode === 'incident') return incidentView(state, ctl);
     if (state.mode === 'report') return reportView(state, ctl);

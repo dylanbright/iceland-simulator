@@ -16,11 +16,11 @@
   const alive = (state, id) => state.people[id] && state.people[id].deathYear == null;
 
   const OMEN = [
-    { name: 'dire', text: 'Ice lingers in the fjords and the thaw is late. The old people expect a hard year.' },
-    { name: 'poor', text: 'A cold, grudging spring. The birds are late and the grass is slow.' },
-    { name: 'middling', text: 'An ordinary spring, neither kind nor cruel.' },
-    { name: 'fair', text: 'A mild spring. The first lambs are strong and the grass is coming early.' },
-    { name: 'excellent', text: 'The thaw came early and the grass is thick. People say it will be a good year.' },
+    { name: 'dire', text: 'Ice lingers in the fjords and the thaw is late. The old people expect a hard year.', winter: 'A hungry year closes in. Every armful of hay will be counted before the thaw.' },
+    { name: 'poor', text: 'A cold, grudging spring. The birds are late and the grass is slow.', winter: 'The year was thin, and the dark comes early. The barns are watched closely.' },
+    { name: 'middling', text: 'An ordinary spring, neither kind nor cruel.', winter: 'The nights lengthen on an ordinary year. The house turns inward to the fire.' },
+    { name: 'fair', text: 'A mild spring. The first lambs are strong and the grass is coming early.', winter: 'A decent year is put away. Snow lies on the hills, and the barns are not empty.' },
+    { name: 'excellent', text: 'The thaw came early and the grass is thick. People say it will be a good year.', winter: 'A rich year is stored against the dark. People are already talking of the Jól feast.' },
   ];
 
   const rngOf = (state) => { const r = new IS.RNG(state.seed); r.setState(state.rngState); return r; };

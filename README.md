@@ -62,3 +62,7 @@ Every feud keeps a tally of the dead (`Feud.slain`). A killing is a debt: when y
 - **snow_broken** - during the truce a hothead on either side breaks the peace. Defend your own man, pay double, or send him abroad. If it was them, prosecute, take a double price, avenge or swallow it.
 
 The *nábúar* dialog shows the tally and any truce. `node test/snowball.js 80 avenge` plays an always-avenge line to check the chain.
+
+## The planning screen
+
+Each season opens with the household's usual plan already filled in, shown as one line per area (work, livestock, buying in, raid, the table, other dealings). Open a line to change it; the game remembers which lines you keep open. **Same as last summer/winter** repeats your routine choices (not one-off dealings like land, thralls, marriage or a raid). Explanatory text shows for the first two years only. The bottom bar turns amber when hay or food falls short; **Farm** opens the farm and household ledger. Enter carries out the plan.
