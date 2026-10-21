@@ -55,6 +55,9 @@
       IS.Feud.seed(state);
       state.peakHonor = state.people[state.headId].attrs.honor;
       IS.Economy.initFarm(state, rng.fork('farm'));
+      state.chronicle = []; state.sagaStats = { kills: 0, burnings: 0, ambitions: 0, raids: 0 };
+      { const w = state.household.wives.map((id) => state.people[id])[0]; if (w) IS.Saga.note(state, 'startwife', `He was married to ${IS.Names.fullName(w)}${w.kin && w.kin.farm ? ` of ${w.kin.farm}` : ''}.`, 0); }
+      IS.Saga.seedAmbition(state, rng.fork('ambition'));
       IS.Turn.prepare(state, rng.fork('prepare'));
       state.rngState = rng.getState();
       return state;

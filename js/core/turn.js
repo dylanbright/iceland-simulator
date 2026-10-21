@@ -145,6 +145,7 @@
     const had = state.household.wives.length;
     const wordy = IS.Marriage.poetryBonus(state) >= 0.1;
     const r = IS.Marriage.newWife(state, rng, year);
+    if (IS.Saga) IS.Saga.note(state, 'marriage', `He married ${N.fullName(r.wife)} of ${r.kinFarm}.`, 1.5);
     rep.household.push(`You married ${N.fullName(r.wife)}, of ${r.kinFarm}. She brought ${fmt(r.dowry)} ells with her. You know only a little of her ways yet.`);
     if (wordy) rep.household.push('Your verses did part of your wooing: her family liked a man who could turn a phrase.');
     r.lines.forEach((l) => rep.household.push(l));
@@ -402,6 +403,13 @@
     // ---- honor
     const head = state.people[state.headId];
     const honorSum = rep.honorParts.reduce((s, p) => s + p.d, 0);
+    if (IS.Saga) {
+      for (const p of rep.honorParts) if (Math.abs(p.d) >= 1.5 && !IS.Saga.ROUTINE.test(p.why || '')) IS.Saga.note(state, 'deed', p.why, p.d);
+      for (const d of died) { const p = state.people[d.id]; if (p && p.id !== state.headId) IS.Saga.death(state, p, p.deathText || 'died', false); }
+      for (const x of born) { const k = state.people[x.id]; if (k && k.sex === 'M') IS.Saga.note(state, 'birth', `${x.text.replace(/\.$/, '')}.`.replace(/ bore a son/, ' bore him a son'), 0.6); }
+      for (const m of marriages) IS.Saga.note(state, 'marriage', m.text.replace(/ Her dowry was [^.]*\./, ''), 1);
+      if (plan.hospitality === 'lavish' && rep.honorParts.some((p) => p.why === 'A lavish table')) state.lavishCount = (state.lavishCount || 0) + 1;
+    }
     if (head.deathYear == null) head.attrs.honor = r1(clamp(head.attrs.honor + honorSum, 1, 100));
     state.lastHonor = head.attrs.honor;
     state.peakHonor = Math.max(state.peakHonor || 0, state.lastHonor);
@@ -425,6 +433,7 @@
 
     if (state.expedition && state.turn + 1 >= state.expedition.untilTurn) {
       if (awayAtStart) rep.raid.push('The ship is home: you are back on the farm.');
+      if (IS.Saga && state.expedition.sponsor && state.people[state.headId].deathYear == null) IS.Saga.stat(state, 'raids');
       state.expedition = null;
     }
     state.turn += 1;

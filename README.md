@@ -66,3 +66,10 @@ The *nábúar* dialog shows the tally and any truce. `node test/snowball.js 80 a
 ## The planning screen
 
 Each season opens with the household's usual plan already filled in, shown as one line per area (work, livestock, buying in, raid, the table, other dealings). Open a line to change it; the game remembers which lines you keep open. **Same as last summer/winter** repeats your routine choices (not one-off dealings like land, thralls, marriage or a raid). Explanatory text shows for the first two years only. The bottom bar turns amber when hay or food falls short; **Farm** opens the farm and household ledger. Enter carries out the plan.
+
+## The story layer (Phase 1)
+
+- **Chronicle** (`js/core/saga.js`, `state.chronicle`): notable deeds as they happen (Honor swings of 1.5 or more, family deaths, marriages, burnings, ambitions), each tagged with the head of the house at the time. Routine season Honor (cloth, hay, hunger, tables) is left out. The Farm dialog shows the last few entries as "What will be told of you".
+- **Ambitions**: each family starts with one, from its history when it has one (an unavenged killing makes vengeance the goal). The others: raise Honor, grow the farm's worth, sail on a raid and come home, marry into a greater house, win two horse races, keep a lavish table three seasons, see two sons grown, end every feud. Fulfilling one gives Honor +4 and an event to choose the next from three. The plan screen shows the current ambition.
+- **Warnings**: 60% of stage 4 and 5 feud blows (a killing, a burning) are signalled a season ahead (`warn_coming`): a shepherd, a kinsman, a beggar, or a wife's dream. Hire guards (may turn the killing back; more men at a burning), send the women and children to kin, strike first, have him bound to the peace by the goði, or wait.
+- **The saga**: when the line ends, `Saga.write` tells the chronicle as saga prose, a chapter for each head of the house, with a rating from *Forgotten* to *A great saga, set down on vellum*. `node test/saga.js` prints one.

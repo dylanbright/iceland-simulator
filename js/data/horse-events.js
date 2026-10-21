@@ -33,7 +33,7 @@
           if (stake) c.pay(stake);
           if (c.rng.chance(p)) {
             h.wins++; h.strength = Math.min(95, h.strength + 1);
-            c.honor(h.wins >= 3 ? 2.6 : 2.2, `${h.name} won the horse-fight`);
+            c.honor(h.wins >= 3 ? 2.6 : 2.2, `Your horse ${h.name} won the horse-fight`);
             if (stake) c.earn(stake * 2.2);
             return `${h.name} came out of the ring bloodied and standing. ${h.wins >= 3 ? 'His name is known across the district. ' : ''}${stake ? `You won ${Math.round(stake * 2.2)} ells on him. ` : ''}People bought you ale.`;
           }
@@ -71,8 +71,8 @@
           const place = ahead + 1;
           h.races++;
           if (place === 1) {
-            h.raceWins++; h.speed = Math.min(95, h.speed + 1);
-            c.honor(h.raceWins >= 3 ? 2.6 : 2.2, `${h.name} won the race`);
+            h.raceWins++; c.state.raceWins = (c.state.raceWins || 0) + 1; h.speed = Math.min(95, h.speed + 1);
+            c.honor(h.raceWins >= 3 ? 2.6 : 2.2, `Your horse ${h.name} won the race`);
             if (stake) c.earn(stake * 3.2);
             return `${h.name} took the lead at the second flag and held it. Men who wouldn't have spoken to you last year bought you ale.${stake ? ` You won ${Math.round(stake * 3.2)} ells on him.` : ''}`;
           }

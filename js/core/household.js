@@ -45,6 +45,8 @@
         if (!d) return;
         if (head.deathYear == null) head.attrs.honor = r1(clamp(head.attrs.honor + d, 1, 100));
         if (rep) { rep.honorParts.push({ d, why }); rep.honorDelta = r1((rep.honorDelta || 0) + d); }
+        if (IS.Saga && Math.abs(d) >= 1.5) IS.Saga.note(state, 'deed', why, d);
+        if (/was outlawed/.test(why || '') && params && params.farm) { state.struck = state.struck || {}; state.struck[params.farm] = true; }
         state.lastHonor = head.attrs.honor;
         state.peakHonor = Math.max(state.peakHonor || 0, head.attrs.honor);
       },
@@ -106,6 +108,7 @@
       kill(p, text, cause) {
         const year = E.yearOf(state), age = year - p.birthYear;
         p.deathYear = year; p.deathCause = cause || 'fever'; p.deathText = text; p.deathAge = age;
+        if (IS.Saga) IS.Saga.death(state, p, text, true);
         IS.Turn.removeFromHousehold(state, p.id);
         const mother = p.motherId && state.people[p.motherId];
         if (mother) { mother.lastLossTurn = state.turn; if (mother.attrs && state.household.wives.includes(mother.id)) mother.attrs.happiness = clamp(mother.attrs.happiness - 10, 0, 100); }
@@ -256,7 +259,10 @@
         if (inc) state.pending.push(inc);
       }
     }
-    if (IS.Feud) IS.Feud.tick(state, rng, rep, makeCtx(state, rng, null, {}, []));
+    const fctx = makeCtx(state, rng, null, {}, []);
+    if (IS.Feud) IS.Feud.tick(state, rng, rep, fctx);
+    if (IS.Saga) IS.Saga.checkAmbition(state, (d, why) => fctx.honor(d, why), rep);
+    if (IS.Saga && !state.ambition && state.turn >= (state.ambitionAsk || 0) && !state.pending.some((p) => p.id === 'ambition_new')) state.pending.push({ id: 'ambition_new', wifeId: null, kind: 'event', params: { done: '' } });
     rollEvents(state, rng, rep.season);
     if (IS.Stable) IS.Stable.sync(state, rng);
   }
@@ -328,6 +334,7 @@
     if (!opt) return null;
     if (opt.cost && E.cashOf(state.farm) < opt.cost) return null;
     const text = opt.run();
+    if (IS.Saga && head0.deathYear == null) IS.Saga.checkAmbition(state, (d, why) => ctx.honor(d, why), null);
     if (head0.deathYear != null) IS.Turn.headDied(state, rng);
     if (IS.Stable) IS.Stable.sync(state, rng);
     state.report.incidents = state.report.incidents || [];

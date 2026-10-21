@@ -144,6 +144,11 @@
       const l = ledger(state, h('span'));
       l.className = 'ledger in-dialog';
       l.firstChild.remove(); l.firstChild.remove(); // the placeholder, and the standing (already on the page)
+      const tale = (state.chronicle || []).filter((e) => Math.abs(e.w) >= 1.5 || e.k === 'marriage').slice(-8);
+      if (tale.length) l.append(h('section', null, h('h2', null, 'What will be told of you'), h('ul', { class: 'tale' }, tale.map((e) => {
+        const head = state.people[e.h]; const x = e.k === 'deed' ? IS.Saga.third(e.x, head ? head.first : 'He') : e.x.replace(/^He\b/, head ? head.first : 'He');
+        return h('li', null, h('span', { class: 'tale-y' }, String(e.y)), ' ', x);
+      }))));
       dlg.append(l, h('div', { class: 'nbr-actions' }, h('button', { class: 'btn', type: 'button', onclick: close }, 'Close')));
       document.body.appendChild(dlg);
       if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', '');
@@ -481,6 +486,8 @@
       h('h1', null, `${cap(S)} of ${year}`),
       h('p', { class: 'omen' }, S === 'winter' && omen.winter ? omen.winter : omen.text),
       h('p', { class: 'beats' }, `This season: ${beats}.`),
+      state.ambition ? h('p', { class: 'ambition' }, h('span', { class: 'amb-k' }, state.ambition.doneTurn != null ? 'Ambition fulfilled' : 'The family’s ambition'), ' ',
+        h('b', null, state.ambition.text + '.'), state.ambition.doneTurn == null ? ' ' + IS.Saga.hintOf(state.ambition) : '') : null,
       h('div', { class: 'plan-tools' },
         h('button', { class: 'btn', type: 'button', onclick: () => ctl.replan(E.suggest(state)) }, 'Usual plan'),
         last ? h('button', { class: 'btn', type: 'button', onclick: sameAsLast }, `Same as last ${S}`) : null,
@@ -563,13 +570,21 @@
     const main = h('main', { class: 'report report-over' },
       h('h1', null, 'The line ends'),
       h('p', { class: 'lede' }, o.reason),
-      h('section', { class: 'rep-sec' }, h('h2', null, 'The saga'),
+      (() => {
+        const sg = IS.Saga.write(state);
+        return h('section', { class: 'rep-sec saga' },
+          h('h2', null, sg.title),
+          h('p', { class: 'saga-rating' }, h('b', null, sg.rating + '.'), ' ', sg.ratingNote),
+          sg.chapters.map((ch, i) => h('div', { class: 'saga-ch' }, h('h3', null, `Chapter ${i + 1}`), h('p', null, ch.lines.join(' ')))));
+      })(),
+      h('section', { class: 'rep-sec' }, h('h2', null, 'The reckoning'),
         h('dl', { class: 'stock' },
           h('dt', null, 'Years'), h('dd', null, String(s.years)),
           h('dt', null, 'Heads of the house'), h('dd', null, String(s.heads)),
           h('dt', null, 'Peak Honor'), h('dd', null, String(s.peakHonor)),
           h('dt', null, 'Final worth'), h('dd', null, fmt(s.wealth) + ' ells'),
-          h('dt', null, 'Score'), h('dd', null, `${s.score} (provisional: the real scoring comes later)`))),
+          h('dt', null, 'Saga score'), h('dd', null, String(IS.Saga.score(state))),
+          h('dt', null, 'Ambitions fulfilled'), h('dd', null, String((state.sagaStats && state.sagaStats.ambitions) || 0)))),
       heads.length ? h('section', { class: 'rep-sec' }, h('h2', null, 'Who held the farm'), h('ul', { class: 'people' }, heads)) : null,
       h('div', { class: 'hero-actions' },
         h('button', { class: 'btn btn-primary', type: 'button', onclick: ctl.abandon }, 'Roll a new family')));

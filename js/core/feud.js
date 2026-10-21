@@ -115,6 +115,8 @@
     const f = ensure(state, farm);
     f.toll = f.toll || { you: 0, them: 0 };
     f.toll[side] += n || 1;
+    if (IS.Saga) IS.Saga.stat(state, 'kills', n || 1);
+    if (side === 'them') { state.struck = state.struck || {}; state.struck[farm] = true; }
     if (side === 'them') f.answer = (f.answer || 0) + (n || 1);
     f.truce = 0;
     const total = f.toll.you + f.toll.them;
@@ -266,7 +268,24 @@
       }
     }
     if (!state.feuds.length) return;
-    if (state.pending.some((p) => p.kind === 'event' && /^(feud_|snow_)/.test(p.id))) return;
+    if (state.pending.some((p) => p.kind === 'event' && /^(feud_|snow_|warn_)/.test(p.id))) return;
+
+    // a blow that was seen coming lands now (unless the house was bound to the peace)
+    const due = state.feuds.find((x) => x.warned && x.warned.due <= state.turn);
+    if (due) {
+      const fam0 = state.families && state.families[due.farm];
+      const w = due.warned; due.warned = null;
+      if (fam0 && fam0.head) {
+        if (w.act === 'kin' && due.guard && rng.chance(0.55)) {
+          rep.events.push(`The men of ${due.farm} came down the valley as you were warned, saw your hired men on the wall, and rode home again.`);
+          due.guard = 0; return;
+        }
+        const item = (w.act === 'burning' ? burning : kin)(state, rng, ctx, due, fam0, fam0.head.first);
+        if (item) { item.params.warned = true; item.params.guard = !!due.guard; item.params.spare = !!due.spare; state.pending.push(Object.assign({ wifeId: null, kind: 'event' }, item)); }
+        due.guard = 0; due.spare = false;
+      }
+      return;
+    }
 
     // killings beget killings: answers, allies, peace-meetings and broken peace
     if (chain(state, rng, ctx)) return;
@@ -291,9 +310,19 @@
     let stage = f.stage;
     if (stage > 1 && rng.chance(0.3)) stage--;
     if (stage >= 5 && rel(state, f.farm) > -70) stage = 4;
+    // the heaviest blows are often seen coming: a season's warning, and a chance to prepare
+    if (stage >= 4 && !f.warned && rng.chance(WARN_CHANCE)) {
+      const act = stage >= 5 ? 'burning' : 'kin';
+      f.warned = { act, due: state.turn + 1 };
+      const wives = state.household.wives.map((id) => state.people[id]).filter((p) => p && p.deathYear == null);
+      const how = act === 'burning' && wives.length && rng.chance(0.5) ? 'dream' : rng.pick(['shepherd', 'kinsman', 'beggar']);
+      state.pending.push({ id: 'warn_coming', wifeId: null, kind: 'event', params: { farm: f.farm, head, act, how, dreamer: how === 'dream' ? wives[0].first : '' } });
+      return;
+    }
     const item = ACTS[stage](state, rng, ctx, f, fam, head);
     if (item) state.pending.push(Object.assign({ wifeId: null, kind: 'event' }, item));
   }
+  const WARN_CHANCE = 0.6;
 
   /* ---------- the acts: each builds its params and applies the damage already done ---------- */
   const pickMale = (state, rng, kinds, minAge) => {
