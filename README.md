@@ -73,3 +73,18 @@ Each season opens with the household's usual plan already filled in, shown as on
 - **Ambitions**: each family starts with one, from its history when it has one (an unavenged killing makes vengeance the goal). The others: raise Honor, grow the farm's worth, sail on a raid and come home, marry into a greater house, win two horse races, keep a lavish table three seasons, see two sons grown, end every feud. Fulfilling one gives Honor +4 and an event to choose the next from three. The plan screen shows the current ambition.
 - **Warnings**: 60% of stage 4 and 5 feud blows (a killing, a burning) are signalled a season ahead (`warn_coming`): a shepherd, a kinsman, a beggar, or a wife's dream. Hire guards (may turn the killing back; more men at a burning), send the women and children to kin, strike first, have him bound to the peace by the goði, or wait.
 - **The saga**: when the line ends, `Saga.write` tells the chronicle as saga prose, a chapter for each head of the house, with a rating from *Forgotten* to *A great saga, set down on vellum*. `node test/saga.js` prints one.
+
+## History and the household (Phase 2)
+
+Dated events (`js/core/history.js`, `js/data/history-events.js`), pushed the season before they happen:
+- **975–976, the famine winters**: dire omens, severe winters, food and hay dear. Buy meal from a Norwegian ship, slaughter early, or trust the farm; in the winter the hungry walk the roads (feed them, feed the children, or bar the door).
+- **985–986, Eiríkr the Red's Greenland fleet**: sell the land and sail (14 of 25 ships arrived: a safe passage, storms that cost stock and people, or near-wreck). You start over at a new farm with free land and new neighbors, Eiríkr at Brattahlíð among them; every Icelandic feud and debt stays behind. Or send a son (word and ivory come back years later), or put silver in a cargo.
+- **997–998, Þangbrandr the priest**: be baptized, take the prime-signing, drive him off (he fights), or listen.
+- **1000, the Alþing takes up the faith**: stand with the Christians, the old gods, or aside before Þorgeirr's verdict; neighbors react by their own faith. In Greenland: Leifr's priest and Þjóðhildr's church, and in 1003–1006 Þorfinnr Karlsefni's voyage to Vínland.
+
+Household drama (`js/data/kin-events.js`):
+- **Sons' tempers**: at 14 a son becomes hot-tempered (22%, 40% if his father is). A hothead brawls, makes verses, and in the end kills; stand behind him, pay, take him in hand (he may leave), or send him abroad. A hot son who inherits becomes a hot-headed head.
+- **The wives' quarrel**: a proud, vindictive, malicious or jealous wife may fall out with a friendly neighbor's wife. Seating at a feast, then a thrall killed, then one of yours, then a man of the house, while the two husbands try to keep faith by paying for each death.
+- **The land**: at a succession, a grown brother who took his share of the movables may claim a share of the land. Divide it (he farms next door as a friend), buy him out, or refuse (he becomes a hostile neighbor with a claim against you).
+
+`node test/history.js` plays lines through all of it.

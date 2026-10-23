@@ -175,11 +175,12 @@
     const lines = [];
     if (idx === 0) {
       const fa = (state.ancestry.generations || []).slice(-1)[0];
-      lines.push(`There was a man named ${headInfo.name}. He lived at ${state.farm.name} in ${state.ancestry.region.valley}, in the ${state.ancestry.region.quarter} Quarter.${fa ? ` His father was ${fa.name}.` : ''}`);
+      const o = state.origin || { farm: state.ancestry.region.farm || state.farm.name, valley: state.ancestry.region.valley, quarter: state.ancestry.region.quarter };
+      lines.push(`There was a man named ${headInfo.name}. He lived at ${o.farm} in ${o.valley}, in the ${o.quarter} Quarter.${fa ? ` His father was ${fa.name}.` : ''}`);
       const wife = (state.chronicle || []).find((e) => e.k === 'startwife');
       if (wife) lines.push(wife.x);
     } else {
-      lines.push(`After him ${headInfo.name} took the farm at ${state.farm.name}.`);
+      lines.push(`After him ${headInfo.name} took the farm.`);
     }
     let prevY = null;
     const seen = new Set();
@@ -215,7 +216,7 @@
     if (cur && !heads.some((x) => x.id === cur.id)) heads.push({ id: cur.id, name: IS.Names.fullName(cur), born: cur.birthYear, died: cur.deathYear, cause: cur.deathText });
     const sc = score(state);
     const tier = TIERS.filter((t) => sc >= t[0]).slice(-1)[0];
-    return { title: `The saga of the people of ${state.farm.name}`, chapters: heads.map((x, i) => chapter(state, x, i)), score: sc, rating: tier[1], ratingNote: tier[2] };
+    return { title: `The saga of the people of ${(state.origin && state.origin.farm) || state.farm.name}`, chapters: heads.map((x, i) => chapter(state, x, i)), score: sc, rating: tier[1], ratingNote: tier[2] };
   }
 
   IS.Saga = { ROUTINE, note, death, stat, AMB, makeAmbition, choices, seedAmbition, checkAmbition, hintOf, third, write, score, TIERS };

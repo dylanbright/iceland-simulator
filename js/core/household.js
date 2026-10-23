@@ -262,6 +262,7 @@
     const fctx = makeCtx(state, rng, null, {}, []);
     if (IS.Feud) IS.Feud.tick(state, rng, rep, fctx);
     if (IS.Saga) IS.Saga.checkAmbition(state, (d, why) => fctx.honor(d, why), rep);
+    if (IS.History) IS.History.tick(state, rng, rep, fctx);
     if (IS.Saga && !state.ambition && state.turn >= (state.ambitionAsk || 0) && !state.pending.some((p) => p.id === 'ambition_new')) state.pending.push({ id: 'ambition_new', wifeId: null, kind: 'event', params: { done: '' } });
     rollEvents(state, rng, rep.season);
     if (IS.Stable) IS.Stable.sync(state, rng);
@@ -272,6 +273,8 @@
     if (item.wifeId && (!state.household.wives.includes(item.wifeId) || !alive(state, item.wifeId))) return false;
     const p = item.params || {};
     for (const k of ['id', 'who', 'kin']) if (p[k] && (!alive(state, p[k]) || !hhHas(state, p[k]))) return false;
+    if (p.hook && !(state.hooks || []).some((x) => x.id === p.hook)) return false;
+    if (p.farm && item.kind === 'event' && state.families && !state.families[p.farm] && !/^(hist_|ambition_)/.test(item.id)) return false;
     return true;
   }
   function dropInvalid(state) {

@@ -52,6 +52,7 @@
       if (Math.abs(mk[k]) < 0.01) delete mk[k];
       else if (env.prices[k] != null) env.prices[k] = r2(clamp(env.prices[k] * (1 + mk[k]), 0.4, 1.9));
     }
+    if (IS.History) IS.History.adjustEnv(state, env, S);
     state.env = env;
   }
 
@@ -64,6 +65,7 @@
       const o = state.env.omen;
       const w = { mild: 18 + 5 * o, normal: 47 + 3 * o, hard: 25 - 4 * o, severe: 10 - 4 * o };
       sev = rng.weighted(E.SEV_ORDER, (k) => w[k]);
+      if (IS.History) sev = IS.History.winterSev(state, rng, sev);
     }
     const ev = IS.FarmEvents.roll(state, rng, S);
     return { season: S, weather, fishLuck, sev, prices: state.env.prices, mods: ev.mods, notes: ev.notes };
@@ -281,6 +283,9 @@
     state.headId = heir.id;
     heir.role = 'head';
     if (!heir.traits.length) heir.traits = T.rollHusband(rng, old.traits);
+    if (heir.temper === 'hot' && !heir.traits.includes('hotheaded')) heir.traits = heir.traits.filter((t) => t !== 'cautious' && t !== 'peaceable').concat('hotheaded');
+    // a grown brother who took his share may want the land too
+    if (leavers.length && rng.chance(0.6)) state.inheritClaim = { brotherId: leavers[0].id, father: old.first };
     P.assignByname(rng, heir);
     heir.attrs.honor = r1(clamp(old.attrs.honor * 0.8 + heir.attrs.honor * 0.2 - 1, 1, 100));
     state.married = false;
