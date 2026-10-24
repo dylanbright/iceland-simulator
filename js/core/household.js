@@ -110,6 +110,7 @@
         p.deathYear = year; p.deathCause = cause || 'fever'; p.deathText = text; p.deathAge = age;
         if (p.role === 'wife' || p.role === 'concubine') { (state.news = state.news || []).push({ type: 'funeral', pid: p.id, hid: state.headId }); const mm = state.marriages.find((x) => x.wifeId === p.id && x.status === 'married'); if (mm) mm.status = 'wife died'; }
         if (IS.Saga) IS.Saga.death(state, p, text, true);
+        if (/feud|fight|killed/.test(cause || '') && p.sex === 'M' && ['son', 'brother', 'servant'].includes(p.role)) state.lastFeudDead = { name: p.first, role: p.role, turn: state.turn };
         IS.Turn.removeFromHousehold(state, p.id);
         const mother = p.motherId && state.people[p.motherId];
         if (mother) { mother.lastLossTurn = state.turn; if (mother.attrs && state.household.wives.includes(mother.id)) mother.attrs.happiness = clamp(mother.attrs.happiness - 10, 0, 100); }
@@ -123,9 +124,19 @@
         if (m) { m.status = 'divorced'; m.endY = E.yearOf(state); }
         state.married = state.household.wives.length > 0;
         const kin = wife.kin && wife.kin.farm;
-        ctx.goodwill(kin, byWife ? -5 : -12);
         const short = dowry - paid;
-        return `${wife.first} went back to ${kin || 'her kin'}. ${Math.round(paid).toLocaleString('en-US')} ells of her dowry went with her${short > 0.5 ? `, and you owe the rest of ${Math.round(short)} ells` : ''}.`;
+        let enemy = '';
+        if (kin && byWife) {
+          // a wife who leaves because of you takes her family's friendship with her
+          state.relations[kin] = clamp(Math.min((state.relations[kin] || 0) - 45, -55), -100, 100);
+          if (IS.Feud && state.families && state.families[kin]) {
+            const f = IS.Feud.ensure(state, kin, `${wife.first} left your house and went home to them`);
+            if (short > 0.5) f.owedThem += Math.round(short);
+            enemy = ` Her father said, in front of witnesses, that ${state.farm.name} is no friend of ${kin} from this day.`;
+          }
+          if (IS.Saga) IS.Saga.note(state, 'divorce', `His wife ${wife.first} left him and went home to ${kin}, and her kin were his enemies after.`, 2);
+        } else ctx.goodwill(kin, -25);
+        return `${wife.first} went back to ${kin || 'her kin'}. ${Math.round(paid).toLocaleString('en-US')} ells of her dowry went with her${short > 0.5 ? `, and you owe the rest of ${Math.round(short)} ells` : ''}.${enemy}`;
       },
     };
     return ctx;
@@ -381,5 +392,6 @@
     return { incident: d.id, option: o.id };
   }
 
-  IS.Household = { INCIDENT_CHANCE, mood, afterSeason, describe, choose, autoChoose, wifeCard, makeCtx };
+  IS.Household = {
+    _ctxFor: (state, wife) => makeCtx(state, rngOf(state), wife, {}, []), INCIDENT_CHANCE, mood, afterSeason, describe, choose, autoChoose, wifeCard, makeCtx };
 })();

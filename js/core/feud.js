@@ -117,6 +117,7 @@
     f.toll[side] += n || 1;
     if (IS.Saga) IS.Saga.stat(state, 'kills', n || 1);
     if (side === 'them') { state.struck = state.struck || {}; state.struck[farm] = true; }
+    else f.lastYou = state.turn;
     if (side === 'them') f.answer = (f.answer || 0) + (n || 1);
     f.truce = 0;
     const total = f.toll.you + f.toll.them;

@@ -93,7 +93,102 @@
         }
         return opts;
       } },
+
+    /* ---------- the whetting: Hildigunnr and the bloody cloak ---------- */
+    { id: 'house_whetting', w: 0, needs: () => null,
+      title: (c) => `${c.p.whetter} will not let it rest`,
+      body: (c) => {
+        const dead = c.p.dead || 'your man';
+        return [c.p.dead
+          ? `At supper ${c.p.whetter} did not sit. She went to the chest and brought out the cloak ${dead} was wearing when the men of ${c.p.farm} killed him, stiff with his blood, and threw it over your shoulders in front of the whole household.`
+          : `At supper ${c.p.whetter} set your food in front of you without a word, then said loudly enough for everyone to hear that she had not known she was married into a house that let its dead lie unavenged.`,
+        c.p.dead ? `She says she charges you, by everything you hold holy, to avenge every wound he took, or be called a coward by every man in the district. Nobody at the table is eating.` : `${c.p.head} of ${c.p.farm} still walks about the district. She would like to know why.`];
+      },
+      options: (c) => {
+        const w = c.state.people[c.p.wid], F = IS.Feud, odds = F.fightOdds(c.state, F.edge(c.state, c.p.farm));
+        const opts = [];
+        if (!c.state.expedition) opts.push({ id: 'ride', label: 'Take up the cloak and ride', desc: `${cap(F.oddsWord(odds))}. Honor +3 if it goes well. She will be satisfied, and the feud will go on.`,
+          run: () => {
+            happy(w, 15); F.bump(c.state, c.p.farm, -15);
+            if (c.rng.chance(odds)) { c.honor(3, `You avenged ${c.p.dead || 'your dead'} at ${c.p.whetter}'s urging`); F.slain(c.state, c.p.farm, 'them'); note(c, 'whetting', `${c.p.whetter} threw ${c.p.dead ? c.p.dead + "'s bloody cloak" : 'the shame of it'} over his shoulders, and he rode to ${c.p.farm} and killed a man there.`, 3); return `You rode that night. By morning a man of ${c.p.farm} was dead, and ${c.p.whetter} served you the best of everything in the house.`; }
+            c.honor(-1, `Your ride on ${c.p.farm} failed`); c.head.attrs.strength = Math.max(5, c.head.attrs.strength - 5);
+            return `They were waiting. You came home hurt and with nothing to show for it.${F.bloodshed(c.state, c.rng, c, c.p.farm, c.p.head, 0.3)}`;
+          } });
+        opts.push({ id: 'promise', label: 'Promise her vengeance, in time', desc: 'She will hold you to it. She will not wait forever.', run: () => { happy(w, -5); const f = F.get(c.state, c.p.farm); if (f) f.whetted = c.state.turn - 3; return `You said it would be done when the time was right. ${c.p.whetter} said the time had been right for some while.`; } });
+        opts.push({ id: 'refuse', label: 'Tell her the law will settle it', desc: `${c.p.whetter} will take this badly.${!c.p.mother && w && (w.traits || []).some((t) => t === 'vindictive' || t === 'proud') ? ' She may leave you over it.' : ''}`,
+          run: () => {
+            happy(w, -15); c.honor(-1, 'You refused a whetting at your own table');
+            if (!c.p.mother && w && w.deathYear == null && c.state.household.wives.includes(w.id) && (w.traits || []).some((t) => t === 'vindictive' || t === 'proud') && c.rng.chance(0.25)) {
+              const wctx = IS.Household._ctxFor ? IS.Household._ctxFor(c.state, w) : null;
+              if (wctx) return `${c.p.whetter} said she would not share a bed with a man who would not avenge his own. ${wctx.divorce(true)}`;
+            }
+            return `${c.p.whetter} took the cloak back and folded it with great care, which was worse than shouting.`;
+          } });
+        return opts;
+      } },
+
+    /* ---------- the widow's suitor ---------- */
+    { id: 'house_widow', w: 0, needs: () => null,
+      title: (c) => { const w = c.state.people[c.p.wid]; return `${c.p.head} of ${c.p.farm} asks for ${w ? w.first : 'the widow'}`; },
+      body: (c) => {
+        const w = c.state.people[c.p.wid];
+        const kids = kidsOf(c, c.p.wid);
+        const who = w && c.head.motherId === w.id ? 'your mother' : 'your father\'s widow';
+        return [`${c.p.head} of ${c.p.farm} has asked for ${w ? w.first : 'her'}, ${who}, in marriage. She is ${w ? c.age(w) : ''} and has been a widow long enough, she says.`,
+          kids.length ? `If she goes, she means to take ${kids.map((k) => k.first).join(' and ')} with her, and their share of the farm with them.` : 'She has no young children to take with her.'];
+      },
+      options: (c) => {
+        const w = c.state.people[c.p.wid];
+        const kids = kidsOf(c, c.p.wid);
+        const m = (c.state.marriages || []).find((x) => x.wifeId === c.p.wid);
+        const dowry = m ? Math.round(m.dowry) : 100, share = Math.round(dowry + kids.length * (60 + 20 * c.tier));
+        const leave = (withKids) => { c.removePerson(w.id); w.role = 'remarried'; if (withKids) kids.forEach((k) => c.removePerson(k.id)); };
+        return [
+          { id: 'bless', label: 'Give her your blessing, and her share', cost: share, desc: `${ells(share)}: her dowry${kids.length ? ' and the children\'s portion' : ''}. She goes with ${kids.length ? 'the children' : 'your goodwill'}. Honor +1, and ${c.p.farm} becomes a friend.`,
+            run: () => { c.pay(share); leave(true); c.goodwill(c.p.farm, 20); c.honor(1, `You gave ${w.first} away with her share`); note(c, 'widow', `${w.first}, his father's widow, married ${c.p.head} of ${c.p.farm}, and he gave her away with her full share.`, 1.5); return `The wedding was at ${c.p.farm}. ${w.first} left with her chest, her portion${kids.length ? ' and the children' : ''}, and something like a smile.`; } },
+          { id: 'kids', label: kids.length ? 'Let her go, but keep the children here' : 'Let her go with her dowry only', cost: dowry, desc: `${ells(dowry)}. ${kids.length ? 'The children stay on the farm they will one day help to work. She will not easily forgive you.' : 'A fair parting.'}`,
+            run: () => { c.pay(dowry); leave(false); c.goodwill(c.p.farm, kids.length ? -5 : 10); return kids.length ? `${w.first} went to ${c.p.farm} alone. She did not look back at the children, which everyone noticed.` : `${w.first} went to ${c.p.farm} with her dowry and your good wishes.`; } },
+          { id: 'forbid', label: 'Refuse the match', desc: `She stays, and ${c.p.head} takes it as an insult.`, run: () => { c.goodwill(c.p.farm, -15); return `You sent ${c.p.head} home with a polite answer. ${w.first} has stopped speaking to you at meals.`; } },
+        ];
+      } },
+
+    /* ---------- her kin's quarrel becomes yours ---------- */
+    { id: 'house_kin_feud', w: 0.5,
+      needs: (c) => {
+        const wives = c.state.household.wives.map((id) => c.state.people[id]).filter((w) => w && w.deathYear == null && w.kin && c.state.families && c.state.families[w.kin.farm] && c.state.families[w.kin.farm].head);
+        if (!wives.length) return null;
+        const w = c.rng.pick(wives), kin = c.state.families[w.kin.farm];
+        const foes = Object.values(c.state.families).filter((f) => f.head && f.farm !== kin.farm && f.farm !== c.state.farm.name && !c.state.household.wives.some((id) => { const x = c.state.people[id]; return x && x.kin && x.kin.farm === f.farm; }));
+        if (!foes.length) return null;
+        const foe = c.rng.pick(foes);
+        return { wid: w.id, kinFarm: kin.farm, kinHead: kin.head.first, foe: foe.farm, foeHead: foe.head.first };
+      },
+      title: (c) => { const w = c.state.people[c.p.wid]; return `${w ? w.first + "'s" : 'Your wife\'s'} kin call on you`; },
+      body: (c) => { const w = c.state.people[c.p.wid]; return [`${c.p.kinHead} of ${c.p.kinFarm}, ${w ? w.first + "'s" : 'your wife\'s'} kinsman, rode in with mud to his knees. ${c.p.foeHead} of ${c.p.foe} has driven his sheep off the common pasture and beaten his herdsman, and he is gathering men to answer it.`, `He did not ask whether you would come. ${w ? w.first : 'Your wife'} is standing beside him, and did not ask either.`]; },
+      options: (c) => {
+        const w = c.state.people[c.p.wid], F = IS.Feud, odds = F.fightOdds(c.state, 0.03), arb = Math.min(0.8, 0.35 + c.head.attrs.law / 300 + c.head.attrs.honor / 300);
+        const opts = [];
+        if (!c.state.expedition) opts.push({ id: 'ride', label: `Ride with ${c.p.kinHead}`, desc: `${cap(F.oddsWord(odds))}. Her kin and she will love you for it. ${c.p.foeHead} will not.`,
+          run: () => {
+            happy(w, 10); c.goodwill(c.p.kinFarm, 18); c.goodwill(c.p.foe, -22); if (F.shiftBond) F.shiftBond(c.state, c.p.kinFarm, c.p.foe, -8);
+            if (c.rng.chance(odds)) { c.honor(1.5, `You rode with your wife's kin against ${c.p.foe}`); if (c.rng.chance(0.4)) c.feud(c.p.foe, `you rode with ${c.p.kinHead} against him`); return `You and ${c.p.kinHead} drove ${c.p.foeHead}'s men off the common and took the sheep back, and some of his. ${w ? w.first : 'Your wife'} met you at the door.`; }
+            c.honor(-1, `You rode with your wife's kin and were beaten`); c.head.attrs.strength = Math.max(5, c.head.attrs.strength - 4); c.feud(c.p.foe, `you rode against him for ${c.p.kinHead}`);
+            return `${c.p.foeHead} had more men than anyone said. You came home bruised, and with a new enemy.`;
+          } });
+        opts.push({ id: 'mediate', label: 'Offer to arbitrate between them', cost: 30, desc: `${ells(30)}. ${cap(F.oddsWord(arb))}. If both accept, both think better of you. Honor +1.`,
+          run: () => { c.pay(30); if (c.rng.chance(arb)) { c.goodwill(c.p.kinFarm, 6); c.goodwill(c.p.foe, 6); c.honor(1, `You settled a quarrel between ${c.p.kinFarm} and ${c.p.foe}`); happy(w, 3); return `You set a price for the sheep and the herdsman's broken head, and both men paid or took it. People say you have a head for the law.`; } happy(w, -6); c.goodwill(c.p.kinFarm, -6); return `${c.p.foeHead} would not come, and ${c.p.kinHead} thinks you were stalling.`; } });
+        opts.push({ id: 'refuse', label: 'Tell him it is not your quarrel', desc: `${w ? w.first : 'Your wife'} will not forget it, and neither will her kin.`,
+          run: () => { happy(w, -14); c.goodwill(c.p.kinFarm, -20); return `${c.p.kinHead} left without eating. ${w ? w.first : 'Your wife'} walked him to his horse and did not come back inside for a long time.`; } });
+        return opts;
+      } },
   ];
+
+  /** A widow's young children, still in the house. */
+  function kidsOf(c, wid) {
+    const y = IS.Economy.yearOf(c.state);
+    return [...c.state.household.kin, ...c.state.household.children].map((id) => c.state.people[id]).filter((k) => k && k.deathYear == null && k.motherId === wid && y - k.birthYear < 14 && k.id !== c.state.headId);
+  }
+  const cap = (s) => s[0].toUpperCase() + s.slice(1);
 
   IS.Events.DEFS.push(...DEFS);
 })();

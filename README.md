@@ -100,3 +100,11 @@ Household drama (`js/data/kin-events.js`):
 ## The women of the house
 
 Weddings, a concubine brought home, and the death of a wife or concubine are now events of their own (`js/data/house-events.js`), shown before anything else in the season so nothing assumes you already know. A wedding: a great feast or a modest one, and with two wives, who gets the keys of the household. A funeral: a funeral feast or a quiet burial; her kin notice if she was unhappy, and a childless wife's dowry can be sent home to them (or kept, at the risk of a feud). The funeral shows a card in her memory.
+
+More of the story now runs through the women of the house:
+- **A wife who leaves you** (`seeks_divorce`) takes her family with her: her kin become hostile at once, a feud opens, and any dowry you could not repay becomes their claim against you.
+- **The whetting** (`house_whetting`): when a man of the house lies unavenged, a proud, vindictive, meddling or malicious wife (or your mother) may throw his bloody cloak over your shoulders at supper, as Hildigunnr did to Flosi. Ride, promise vengeance in time, or refuse (and a proud or vindictive wife may leave you over it).
+- **Her kin's quarrels** (`house_kin_feud`): your wife's kinsman comes to gather men against a neighbor. Ride with him, offer to arbitrate, or refuse and live with both of them.
+- **The widow's suitor** (`house_widow`): after a succession, a neighbor may ask for your father's widow, who would take her young children and their share with her. Bless the match and pay her portion, keep the children, or refuse.
+- The starting wife's family is now a house of the district, so it can take part in all of this.
+

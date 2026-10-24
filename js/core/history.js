@@ -201,6 +201,39 @@
     return farm;
   }
 
+  /** The whetting (hvöt): a man of the house lies unavenged, and a woman of the house will not let it rest. */
+  const WHETTERS = ['vindictive', 'proud', 'meddling', 'malicious'];
+  function whetting(state, rng) {
+    if (state.expedition || state.pending.some((p) => p.id === 'house_whetting')) return;
+    const f = (state.feuds || []).find((x) => x.toll && x.toll.you > x.toll.them && x.lastYou != null && state.turn - x.lastYou <= 4 && !(x.whetted > state.turn - 6));
+    if (!f) return;
+    const fam = state.families && state.families[f.farm];
+    if (!fam || !fam.head) return;
+    const hh = state.household;
+    const wives = hh.wives.map((id) => state.people[id]).filter((w) => w && w.deathYear == null);
+    const fierce = wives.filter((w) => (w.traits || []).some((t) => WHETTERS.includes(t)));
+    const mothers = hh.kin.map((id) => state.people[id]).filter((p) => p && p.deathYear == null && (p.role === 'mother' || p.role === 'stepmother'));
+    const who = fierce[0] || mothers[0] || null;
+    if (!who || !rng.chance(fierce.length ? 0.45 : 0.25)) return;
+    f.whetted = state.turn;
+    const dead = state.lastFeudDead && state.turn - state.lastFeudDead.turn <= 5 ? state.lastFeudDead : null;
+    state.pending.push({ id: 'house_whetting', wifeId: who.role === 'wife' ? who.id : null, kind: 'event', params: { farm: f.farm, head: fam.head.first, dead: dead ? dead.name : '', rel: dead ? dead.role : '', whetter: who.first, wid: who.id, mother: who.role !== 'wife' } });
+  }
+
+  /** A widow of the last head may be courted, and would take her young children, and their share, with her. */
+  function widows(state, rng) {
+    if (state.expedition || state.pending.some((p) => p.id === 'house_widow')) return;
+    const y = E().yearOf(state);
+    const ws = state.household.kin.map((id) => state.people[id]).filter((p) => p && p.deathYear == null && p.sex === 'F' && (p.role === 'mother' || p.role === 'stepmother') && !p.widowAsked && y - p.birthYear >= 24 && y - p.birthYear <= 46);
+    if (!ws.length || !rng.chance(0.2)) return;
+    const w = rng.pick(ws);
+    w.widowAsked = true;
+    const pool = Object.values(state.families || {}).filter((f) => f.head && f.farm !== state.farm.name && ((state.relations || {})[f.farm] || 0) > -30);
+    if (!pool.length) return;
+    const fam = rng.pick(pool);
+    state.pending.push({ id: 'house_widow', wifeId: null, kind: 'event', params: { wid: w.id, farm: fam.farm, head: fam.head.first } });
+  }
+
   /** Called from Household.afterSeason. */
   function tick(state, rng, rep, ctx) {
     state.pending = state.pending || [];
@@ -208,6 +241,8 @@
     tempers(state, rng);
     inheritance(state, rng);
     wivesQuarrel(state, rng, ctx);
+    whetting(state, rng);
+    widows(state, rng);
   }
 
   IS.History = { FAMINE, isFamine, adjustEnv, winterSev, faithOf, SCHEDULE, migrate, tick, hotSon, sonsOf, brotherFarm, GREEN_FARMS };

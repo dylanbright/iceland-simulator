@@ -216,11 +216,11 @@
     { id: 'seeks_divorce', band: [0, 24], w: 2.4, traits: {},
       needs: () => ({}),
       title: () => 'She will leave',
-      body: (c) => [`${c.wname} has gone to her kin and says she will recite the divorce words before witnesses. Her father is with her.`],
+      body: (c) => [`${c.wname} has gone to her kin and says she will recite the divorce words before witnesses. Her father is with her, and he is not here to make peace. If she leaves, her family leaves with her.`],
       options: (c) => {
         const cost = 60 + 30 * c.tier;
         return [
-          { id: 'go', label: 'Let her go', desc: 'Her dowry goes back with her. Her kin will be cool to you.',
+          { id: 'go', label: 'Let her go', desc: 'Her dowry goes back with her, and her family becomes your enemy.',
             run: () => { const t = c.divorce(true); c.honor(-1, 'A wife who left you'); return t; } },
           { id: 'appease', label: 'Send gifts and ask her to stay', cost, desc: `${ells(cost)}. She may stay, and she may not.`,
             run: () => {

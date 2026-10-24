@@ -55,6 +55,11 @@
       IS.Feud.seed(state);
       state.peakHonor = state.people[state.headId].attrs.honor;
       IS.Economy.initFarm(state, rng.fork('farm'));
+      // the starting wife's family is a house of the district too, so her kin can matter
+      for (const id of state.household.wives) {
+        const w = state.people[id], k = w && w.kin;
+        if (k && k.farm && state.families && !state.families[k.farm]) state.families[k.farm] = { farm: k.farm, head: IS.Names.male(rng.fork('kin' + id)), tier: k.tier || 2, roles: ['wife-kin'], goði: false };
+      }
       state.chronicle = []; state.sagaStats = { kills: 0, burnings: 0, ambitions: 0, raids: 0 };
       { const w = state.household.wives.map((id) => state.people[id])[0]; if (w) IS.Saga.note(state, 'startwife', `He was married to ${IS.Names.fullName(w)}${w.kin && w.kin.farm ? ` of ${w.kin.farm}` : ''}.`, 0); }
       IS.Saga.seedAmbition(state, rng.fork('ambition'));
