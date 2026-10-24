@@ -419,3 +419,32 @@ button, input { font: inherit; color: inherit; }
 .saga-ch p { font-size: 1.08rem; line-height: 1.7; text-indent: 1.5em; margin: 0; }
 .tale li { margin: 0 0 0.45rem; }
 .tale-y { font-family: var(--sans); font-size: 0.82rem; color: var(--stone); font-variant-numeric: tabular-nums; margin-right: 0.3rem; }
+
+/* ---------- the Alþing case card and the battle screen ---------- */
+.case-card { margin: 1.2rem 0 1.4rem; padding: 0.9rem 1rem; border: 1px solid var(--lichen); border-radius: 3px; max-width: 34rem; }
+.case-card h2 { margin: 0 0 0.6rem; font-size: 1.05rem; }
+.case-card .stock { grid-template-columns: 7.5rem 1fr; }
+.battle { margin: 1.2rem 0 1.4rem; padding: 0.9rem 1rem 1rem; border: 1px solid var(--basalt); border-radius: 3px; max-width: 36rem; }
+.bt-rounds { display: flex; justify-content: space-between; align-items: center; font-family: var(--sans); font-size: 0.82rem; color: var(--stone); margin-bottom: 0.7rem; }
+.bt-pips { display: inline-flex; gap: 0.3rem; }
+.bt-pip { width: 1.4rem; height: 0.35rem; border-radius: 2px; background: var(--fog-deep); }
+.bt-pip.done { background: var(--stone); }
+.bt-pip.now { background: var(--basalt); }
+.bt-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; }
+.bt-side h3 { margin: 0 0 0.4rem; font-size: 0.95rem; }
+.bt-side ul { list-style: none; margin: 0; padding: 0; }
+.bt-man { display: grid; grid-template-columns: 0.8rem auto 1fr; gap: 0 0.45rem; align-items: baseline; font-size: 0.95rem; padding: 0.15rem 0; }
+.bt-dot { width: 0.6rem; height: 0.6rem; border-radius: 50%; border: 1.5px solid var(--basalt); display: inline-block; }
+.bt-fit .bt-dot { background: var(--basalt); }
+.bt-wounded .bt-dot { background: linear-gradient(90deg, var(--basalt) 50%, transparent 50%); }
+.bt-down .bt-dot, .bt-dead .bt-dot { border-color: var(--stone); }
+.bt-dead .bt-name { text-decoration: line-through; color: var(--stone); }
+.bt-down .bt-name { color: var(--stone); }
+.bt-tag { font-family: var(--sans); font-size: 0.75rem; color: var(--stone); }
+.bt-state { grid-column: 2 / -1; font-family: var(--sans); font-size: 0.75rem; color: var(--stone); }
+.bt-man .bt-tag { grid-column: 3; }
+.bt-log { margin: 0.9rem 0 0; padding: 0.7rem 0 0; border-top: 1px dashed var(--fog-deep); list-style: none; font-size: 0.92rem; line-height: 1.5; }
+.bt-log li { margin: 0 0 0.35rem; }
+.bt-log li:not(:first-child) { color: var(--stone); }
+@media (max-width: 40rem) { .bt-cols { grid-template-columns: 1fr; } }
+.case-line .case-item { display: block; }

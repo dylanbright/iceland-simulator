@@ -304,7 +304,9 @@
 
     // he has a suit to bring against you
     if (f.owedThem > 0 && rng.chance(0.35)) {
-      state.pending.push({ id: 'feud_summons', wifeId: null, kind: 'event', params: { farm: f.farm, head, owed: Math.round(f.owedThem) } });
+      // a dead man is a case for the Alþing, not a summons for damages
+      const killing = tollOf(f).them > 0 && IS.Law && !(state.cases || []).some((c) => c.farm === f.farm);
+      state.pending.push({ id: killing ? 'law_summons' : 'feud_summons', wifeId: null, kind: 'event', params: { farm: f.farm, head, owed: Math.round(f.owedThem) } });
       return;
     }
     let stage = f.stage;

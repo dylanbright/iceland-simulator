@@ -237,6 +237,8 @@
     state.feuds = state.feuds || [];
     if (IS.Stable) IS.Stable.sync(state, rng);
     rep.incidents = rep.incidents || [];
+    // the law does not wait for anyone, and an outlaw in the highlands has his own seasons
+    if (IS.Law) { IS.Law.tick(state, rng); IS.Law.exileTick(state, rng); }
     // wintering abroad: nobody is home to answer anything
     if (state.expedition && state.expedition.untilTurn > state.turn + 1) return;
     if (IS.Raid) {
@@ -320,6 +322,7 @@
       id: item.id, number: (state.pendingTotal || state.pending.length) - state.pending.length + 1, total: state.pendingTotal || state.pending.length,
       kind: item.kind || 'incident', title: def.title(ctx), body: def.body(ctx), wife: wife ? wifeCard(state, wife) : null,
       options: def.options(ctx).map((o) => ({ id: o.id, label: o.label, desc: o.desc, cost: o.cost || 0, disabled: !!o.cost && cash < o.cost })),
+      view: def.view ? def.view(ctx) : null,
     };
   }
 

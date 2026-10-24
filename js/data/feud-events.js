@@ -49,6 +49,24 @@
     ];
   }
 
+  /** The house burns with its people: a share of those inside die (adult men most). Returns the names of the dead. */
+  function burnHouse(c, spareWomen, headHere, menRate) {
+    const fm = c.state.farm, hh = c.state.household, dead = [];
+    fm.condition = Math.max(0, fm.condition - 40); fm.hay *= 0.5; fm.provisions *= 0.5; fm.wool *= 0.4;
+    const all = [...hh.wives, ...(hh.concubines || []), ...hh.children, ...hh.kin, ...hh.servants, ...hh.thralls].map((id) => c.state.people[id]).filter((p) => p && p.deathYear == null);
+    for (const p of all) {
+      const adultM = p.sex === 'M' && c.age(p) >= 16 && p.kind !== 'thrall';
+      const pr = adultM ? (menRate == null ? 0.45 : menRate) : spareWomen && p.kind !== 'thrall' ? 0 : 0.15;
+      if (c.rng.chance(pr)) { c.kill(p, `burned in the attack by ${c.p.farm}`, 'burned in a feud'); dead.push(p.first); if (adultM) F().slain(c.state, c.p.farm, 'you'); }
+    }
+    if (headHere && c.rng.chance(0.3)) { c.kill(c.head, `burned in the attack by ${c.p.farm}`, 'burned in his house'); dead.push(c.head.first); }
+    c.state.married = c.state.household.wives.length > 0;
+    if (IS.Saga) { IS.Saga.stat(c.state, 'burnings'); IS.Saga.note(c.state, 'burning', `The men of ${c.p.farm}, led by ${c.p.head}, came by night and burned the house at ${c.state.farm.name}.${dead.length ? ` ${dead.join(', ')} died in the fire.` : ' All came out alive.'}`, 5); }
+    return dead;
+  }
+
+  IS.FeudFx = { burn: (c, spare, headHere) => burnHouse(c, spare, headHere, 0.3) };
+
   const DEFS = [
     { id: 'feud_insult', w: 0, needs: () => null,
       title: (c) => `${c.p.head} mocks you before the whole Thing`,
@@ -120,8 +138,8 @@
         const away = !!c.state.expedition;
         const odds = F().fightOdds(c.state, F().edge(c.state, c.p.farm));
         const opts = [
-          { id: 'prosecute', label: 'Prosecute for outlawry at the Althing', cost: 60, desc: `${ells(60)}. ${cap(word(L))}. A win pays about ${ells(v)}, makes ${c.p.head} an outlaw, and ends the feud on your terms. Honor +3.`,
-            run: () => { c.pay(60); sour(c, -10); if (c.rng.chance(L)) { c.earn(v); c.honor(3, `${c.p.head} was outlawed for killing ${c.p.victim}`); F().end(c.state, c.p.farm); return `The court declared ${c.p.head} an outlaw. He took ship before the summer was out, and ${c.p.farm} will not trouble you again soon.`; } c.honor(-3, `You lost the case for ${c.p.victim}`); return `Your witnesses were shaken and the case failed on a point of procedure. It is hard to be told that the law was right.`; } },
+          { id: 'prosecute', label: 'Prosecute for outlawry at the Alþing', cost: 20, desc: `${ells(20)} to have the summons read. The case is heard at the next Alþing, where witnesses and a chieftain's backing decide it. A win outlaws ${c.p.head} and pays about ${ells(v)}.`,
+            run: () => { c.pay(20); sour(c, -10); const cs = IS.Law.file(c.state, c.rng, { side: 'plaintiff', farm: c.p.farm, head: c.p.head, charge: 'killing', victim: c.p.victim, value: v }); return cs ? `Your witnesses rode to ${c.p.farm} and read the summons at ${c.p.head}'s door. The case will be heard at the Alþing.` : `You already have a case against ${c.p.farm} waiting for the Alþing. This killing will be added to it.`; } },
           { id: 'settle', label: 'Accept blood-money after arbitration', cost: 30, desc: `${ells(30)}. ${cap(word(arb))}. About ${ells(v * 0.8)} and a handshake. Honor −0.5, but the worst of it ends.`,
             run: () => { c.pay(30); if (c.rng.chance(arb)) { c.earn(v * 0.8); c.honor(-0.5, `Blood-money for ${c.p.victim}`); sour(c, 5); down(c, 2); return `The arbiters set a price, and ${c.p.head} paid it and gave his hand on it. The district called it a good peace, and said it quietly.`; } c.honor(-1, `${c.p.farm}'s insulting offer`); sour(c, -5); return `${c.p.head} offered the price of a thrall. You sent his man away.`; } },
         ];
@@ -146,34 +164,15 @@
         const away = !!c.state.expedition, f = c.p.force, bonus = -(f - 12) / 100 + F().edge(c.state, c.p.farm) + (c.p.guard ? 0.12 : 0);
         const odds = F().fightOdds(c.state, bonus), oddsW = F().fightOdds(c.state, bonus - 0.1);
         const tribute = 300 + 100 * c.tier;
-        const burn = (spareWomen, headHere) => {
-          const fm = c.state.farm, hh = c.state.household, dead = [];
-          fm.condition = Math.max(0, fm.condition - 40); fm.hay *= 0.5; fm.provisions *= 0.5; fm.wool *= 0.4;
-          const all = [...hh.wives, ...(hh.concubines || []), ...hh.children, ...hh.kin, ...hh.servants, ...hh.thralls].map((id) => c.state.people[id]).filter((p) => p && p.deathYear == null);
-          for (const p of all) {
-            const adultM = p.sex === 'M' && c.age(p) >= 16 && p.kind !== 'thrall';
-            const pr = adultM ? 0.45 : spareWomen && p.kind !== 'thrall' ? 0 : 0.15;
-            if (c.rng.chance(pr)) { c.kill(p, `burned in the attack by ${c.p.farm}`, 'burned in a feud'); dead.push(p.first); if (adultM) F().slain(c.state, c.p.farm, 'you'); }
-          }
-          if (headHere && c.rng.chance(0.3)) { c.kill(c.head, `burned in the attack by ${c.p.farm}`, 'burned in his house'); dead.push(c.head.first); }
-          c.state.married = c.state.household.wives.length > 0;
-          if (IS.Saga) { IS.Saga.stat(c.state, 'burnings'); IS.Saga.note(c.state, 'burning', `The men of ${c.p.farm}, led by ${c.p.head}, came by night and burned the house at ${c.state.farm.name}.${dead.length ? ` ${dead.join(', ')} died in the fire.` : ' All came out alive.'}`, 5); }
-          return dead;
-        };
+        const fd = F().get(c.state, c.p.farm);
+        const spec = (spare) => ({ kind: 'burning', farm: c.p.farm, head: c.p.head, force: Math.round(f / 3), power: 1, hired: c.p.guard ? 3 : 0, friends: fd ? Math.min(4, (fd.backers || 0) * 2) : 0, extra: { spare, headHere: !away, edge: F().edge(c.state, c.p.farm) } });
+        const burn = (spareWomen, headHere) => burnHouse(c, spareWomen, headHere);
         const aftermath = (dead) => (dead.length ? ` The dead: ${dead.join(', ')}.` : ' All came out alive, which is more than anyone expected.');
         return [
-          { id: 'fight', label: 'Hold the house and fight', desc: `${cap(word(odds))}. A win brings Honor +6. A loss means the house burns, with its people.`,
-            run: () => {
-              owe(c, 400);
-              if (c.rng.chance(odds)) { c.honor(6, `You held your house against ${c.p.farm}`); sour(c, -10); F().escalate(c.state, c.p.farm, -2); F().slain(c.state, c.p.farm, 'them', 2); const m = F().men(c.state); let x = ''; if (m.length && c.rng.chance(0.3)) { const v = c.rng.pick(m); c.kill(v, `fell defending the house against ${c.p.farm}`, 'killed in a feud'); F().slain(c.state, c.p.farm, 'you'); x = ` ${v.first} fell at the door.`; } return `You held the door until the grey light, and ${c.p.head}'s men gave way. They left two dead in the yard.${x} People will tell this one.`; }
-              c.honor(-3, `${c.p.farm} burned your house`); return `The roof caught. You fought from the gable until the smoke drove you out.${aftermath(burn(!!c.p.spare, !away))}`;
-            } },
-          { id: 'women', label: 'Ask for the women and children to be let out, then hold the house', desc: `${cap(word(oddsW))}. Honor +4 if you hold. The women and children are spared whatever happens.`,
-            run: () => {
-              owe(c, 400);
-              if (c.rng.chance(oddsW)) { c.honor(4, `You held your house against ${c.p.farm}`); sour(c, -10); F().escalate(c.state, c.p.farm, -2); return `${c.p.head} let the women walk out through the line, which he had not planned to do. Then your men held the door until he gave up the night.`; }
-              c.honor(-2, `${c.p.farm} burned your house`); return `The women and children were let out. The rest of you were not.${aftermath(burn(true, !away))}`;
-            } },
+          { id: 'fight', label: 'Hold the house and fight', desc: `${cap(IS.Battle.oddsWord(c.state, spec(false)))}. Hold them off and Honor +6. Lose, and the house burns with its people.`,
+            run: () => { owe(c, 400); c.state.pending.splice(1, 0, IS.Battle.start(c.state, c.rng, spec(!!c.p.spare))); return 'You put your men at the door and the gable, and wet the roof as best you could.'; } },
+          { id: 'women', label: 'Ask for the women and children to be let out, then hold the house', desc: `${cap(IS.Battle.oddsWord(c.state, spec(true)))}. Honor +4 if you hold. The women and children are spared whatever happens.`,
+            run: () => { owe(c, 400); c.state.pending.splice(1, 0, IS.Battle.start(c.state, c.rng, spec(true))); return `${c.p.head} let the women and children walk out through his line, which he had not planned to do. Then it was only men in the house.`; } },
           { id: 'flee', label: 'Slip away in the dark and leave the buildings', desc: 'Honor −5. Nobody dies, but the house and its stores are mostly lost.',
             run: () => { const fm = c.state.farm; fm.condition = Math.max(0, fm.condition - 25); fm.hay *= 0.7; fm.provisions *= 0.7; c.honor(-5, 'You left your house to be burned'); F().escalate(c.state, c.p.farm, -1); return `You got everyone out through the back of the byre. From the hill you watched the roof go. People will say you ran. They will also say nobody died.`; } },
           { id: 'tribute', label: 'Offer everything to buy peace', cost: tribute, desc: `${ells(tribute)}. Honor −3. The feud falls back to bad blood.`,

@@ -326,7 +326,8 @@
     const awayAtStart = IS.Raid.isAway(state);
     const plan = E.normalizePlan(state, awayAtStart ? E.suggest(state) : planIn, S);
     const rep = { turn: state.turn, year, season: S, farm: [], herd: [], household: [], events: [], raid: [], honorParts: [], before: snapshot(state) };
-    if (awayAtStart) rep.raid.push(`You are abroad. ${state.people[state.expedition.deputyId].first} runs the farm through the winter.`);
+    if (awayAtStart && !state.expedition.exile) { const dp = state.people[state.expedition.deputyId]; rep.raid.push(`You are abroad. ${dp ? dp.first : 'Nobody'} runs the farm through the winter.`); }
+    if (awayAtStart && state.exile && IS.Law) IS.Law.season(state, rng, rep);
     const sailing = !awayAtStart && plan.raid ? IS.Raid.begin(state, plan.raid, rep) : null;
     if (sailing) { plan.seekWife = false; }
 
@@ -437,7 +438,7 @@
     state.history.push({ turn: state.turn, year, season: S, wealth: f.wealth, honor: rep.after.honor, people: rep.after.people, cattle: f.cattle, sheep: f.sheep, hay: f.hay, cash: rep.after.cash });
 
     if (state.expedition && state.turn + 1 >= state.expedition.untilTurn) {
-      if (awayAtStart) rep.raid.push('The ship is home: you are back on the farm.');
+      if (awayAtStart && !state.expedition.exile) rep.raid.push('The ship is home: you are back on the farm.');
       if (IS.Saga && state.expedition.sponsor && state.people[state.headId].deathYear == null) IS.Saga.stat(state, 'raids');
       state.expedition = null;
     }

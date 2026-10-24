@@ -88,3 +88,11 @@ Household drama (`js/data/kin-events.js`):
 - **The land**: at a succession, a grown brother who took his share of the movables may claim a share of the land. Divide it (he farms next door as a friend), buy him out, or refuse (he becomes a hostile neighbor with a claim against you).
 
 `node test/history.js` plays lines through all of it.
+
+## Law and the sword (Phase 3)
+
+- **The Alþing** (`js/core/law.js`, `js/data/law-events.js`): killing, burning and broken-peace cases are filed (by you, or against you through `law_summons` once you have killed a man of theirs) and heard at the next Alþing at least a season later. The hearing is a sequence: witnesses (neighbors, your own household, or bought men who may be exposed), a chieftain's backing (gifts; his odds depend on how he likes you and the other side) or a man learned in the law, then the pleading (careful, bold, let your backer speak, look for a flaw in theirs, or settle before the verdict). Procedural slips void a case. A case card shows where things stand at each step. A verdict can set off a brawl at the Thing.
+- **Outlawry**: lose a killing case and you are a lesser outlaw (three years abroad: the Varangian Guard in Miklagarðr, rich and dangerous, or the earl's court in Norway); lose a burning or broken-peace case, or one you defied, or with Honor under 25, and you are a full outlaw (the highlands like Grettir, where hunters come and your kin can try to buy your peace each summer; or leave Iceland for good and let the heir take the farm). The farm runs on the usual plan under a deputy while you are gone.
+- **The battle screen** (`js/core/battle.js`): burnings, Thing brawls and outlaw hunters are fought over up to four rounds between named men. Each round: hold the shield wall (safe), press the attack or go for their leader (gambles), break off, or (at the Thing) call the peacemakers. Defenders at a door or on a scree slope are hard to reach; hired guards and friends' men fight beside you.
+
+`node test/law.js` plays hostile districts through all of it.

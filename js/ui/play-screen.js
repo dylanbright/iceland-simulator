@@ -158,7 +158,21 @@
 
   /* ---------- planning ---------- */
   const OPEN = new Set(); // which plan sections the player has left open, kept across seasons
+  function exileView(state, ctl) {
+    const x = state.exile, dep = state.people[state.expedition.deputyId], S = E.seasonOf(state);
+    const W = IS.Law.WHERE[x.where], left = Math.max(0, x.until - state.turn);
+    const where = W ? `You are serving your outlawry in ${W.name}. ${Math.ceil(left / 2)} ${Math.ceil(left / 2) === 1 ? 'year' : 'years'} remain before you may go home.` : 'You are an outlaw in the highlands. Every man in Iceland may kill you, and some of them mean to.';
+    const main = h('main', { class: 'report' },
+      h('h1', null, W ? `${cap(S)} in ${W.name}` : `${cap(S)} in the highlands`),
+      h('p', { class: 'lede' }, where),
+      h('p', null, dep ? `${dep.first} runs the farm at home, as best ${dep.sex === 'F' ? 'she' : 'he'} can, on the household's usual plan.` : 'Nobody fit is left to run the farm. It runs itself, badly.'),
+      x.gains ? h('p', null, `You have put by about ${fmt(x.gains)} ells to bring home.`) : null,
+      h('div', { class: 'hero-actions' }, h('button', { class: 'btn btn-primary', type: 'button', onclick: () => ctl.resolve({}) }, S === 'summer' ? 'Let the summer pass' : 'Let the winter pass')));
+    return h('div', { class: 'page' }, bar(state, ctl, abandonButton(ctl)), h('main', { class: 'layout' }, main, ledger(state)));
+  }
+
   function awayView(state, ctl) {
+    if (state.exile && state.expedition && state.expedition.exile) return exileView(state, ctl);
     const x = state.expedition, d = IS.Raid.DEST[x.dest], dep = state.people[x.deputyId];
     const main = h('main', { class: 'report' },
       h('h1', null, `Winter abroad`),
@@ -488,6 +502,8 @@
       h('p', { class: 'beats' }, `This season: ${beats}.`),
       state.ambition ? h('p', { class: 'ambition' }, h('span', { class: 'amb-k' }, state.ambition.doneTurn != null ? 'Ambition fulfilled' : 'The family’s ambition'), ' ',
         h('b', null, state.ambition.text + '.'), state.ambition.doneTurn == null ? ' ' + IS.Saga.hintOf(state.ambition) : '') : null,
+      (state.cases || []).length ? h('p', { class: 'ambition case-line' }, h('span', { class: 'amb-k' }, 'Before the Alþing'),
+        state.cases.map((cs) => h('span', { class: 'case-item' }, h('b', null, cs.side === 'plaintiff' ? `Your case against ${cs.head} of ${cs.farm}` : `${cs.head} of ${cs.farm}'s case against you`), `, for ${IS.Law.chargeWord(cs)}. Heard in the summer of ${IS.Calendar.turnInfo(cs.hearing, state.startYear).year}.`))) : null,
       h('div', { class: 'plan-tools' },
         h('button', { class: 'btn', type: 'button', onclick: () => ctl.replan(E.suggest(state)) }, 'Usual plan'),
         last ? h('button', { class: 'btn', type: 'button', onclick: sameAsLast }, `Same as last ${S}`) : null,
@@ -541,6 +557,20 @@
   }
 
   /* ---------- a matter in the house ---------- */
+  /** The battle screen: two columns of named men, and the last rounds. */
+  function battlePanel(b) {
+    const mark = (m) => (m.hp >= (m.max || 2) ? 'fit' : m.hp > 0 ? 'wounded' : m.dead ? 'dead' : 'down');
+    const WORD = { fit: 'standing', wounded: 'wounded', down: 'out of the fight', dead: 'dead' };
+    const col = (title, side) => h('div', { class: 'bt-side' }, h('h3', null, title),
+      h('ul', null, side.map((m) => h('li', { class: 'bt-man bt-' + mark(m) }, h('span', { class: 'bt-dot', 'aria-hidden': 'true' }),
+        h('span', { class: 'bt-name' }, m.name + (m.lead ? ' ★' : '')), m.tag ? h('span', { class: 'bt-tag' }, ' ' + m.tag) : null, h('span', { class: 'bt-state' }, WORD[mark(m)])))));
+    const pips = Array.from({ length: b.max }, (_, i) => h('span', { class: 'bt-pip' + (i < b.round - 1 ? ' done' : i === b.round - 1 ? ' now' : '') }));
+    return h('section', { class: 'battle', 'aria-label': 'The fight' },
+      h('div', { class: 'bt-rounds' }, h('span', null, `Round ${Math.min(b.round, b.max)} of ${b.max}`), h('span', { class: 'bt-pips' }, pips)),
+      h('div', { class: 'bt-cols' }, col('Your side', b.us), col(`${b.foe}'s side`, b.them)),
+      b.log.length ? h('ol', { class: 'bt-log' }, b.log.slice(0, 3).map((l) => h('li', null, l))) : null);
+  }
+
   function incidentView(state, ctl) {
     const d = IS.Household.describe(state);
     if (!d) { state.mode = 'report'; return reportView(state, ctl); }
@@ -559,6 +589,8 @@
       h('h1', null, d.title),
       d.body.map((l) => h('p', { class: 'lede' }, l)),
       card,
+      d.view && d.view.card ? h('section', { class: 'case-card' }, h('h2', null, d.view.card.title), h('dl', { class: 'stock' }, d.view.card.rows.map(([k, v]) => [h('dt', null, k), h('dd', null, v)]))) : null,
+      d.view && d.view.battle ? battlePanel(d.view.battle) : null,
       h('div', { class: 'opts', role: 'group', 'aria-label': 'What will you do?' }, opts));
     return h('div', { class: 'page' }, bar(state, ctl, abandonButton(ctl)), h('main', { class: 'layout' }, main, ledger(state)));
   }
