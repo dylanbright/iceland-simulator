@@ -108,6 +108,7 @@
       kill(p, text, cause) {
         const year = E.yearOf(state), age = year - p.birthYear;
         p.deathYear = year; p.deathCause = cause || 'fever'; p.deathText = text; p.deathAge = age;
+        if (p.role === 'wife' || p.role === 'concubine') { (state.news = state.news || []).push({ type: 'funeral', pid: p.id, hid: state.headId }); const mm = state.marriages.find((x) => x.wifeId === p.id && x.status === 'married'); if (mm) mm.status = 'wife died'; }
         if (IS.Saga) IS.Saga.death(state, p, text, true);
         IS.Turn.removeFromHousehold(state, p.id);
         const mother = p.motherId && state.people[p.motherId];
@@ -268,6 +269,17 @@
     if (IS.Saga && !state.ambition && state.turn >= (state.ambitionAsk || 0) && !state.pending.some((p) => p.id === 'ambition_new')) state.pending.push({ id: 'ambition_new', wifeId: null, kind: 'event', params: { done: '' } });
     rollEvents(state, rng, rep.season);
     if (IS.Stable) IS.Stable.sync(state, rng);
+    drainNews(state, 0);
+  }
+
+  /** Weddings, funerals and new women in the house come first, before anything that assumes you know of them. */
+  function drainNews(state, at) {
+    const news = state.news || [];
+    if (!news.length) return;
+    state.news = [];
+    const items = news.map((n) => ({ id: 'house_' + n.type, wifeId: n.type === 'wedding' ? n.pid : null, kind: 'event', params: Object.assign({}, n, { pid: undefined, wid: n.pid }) }));
+    state.pending.splice(at, 0, ...items);
+    state.pendingTotal = (state.pendingTotal || 0) + items.length;
   }
 
   /* ---------- presenting and answering ---------- */
@@ -346,6 +358,7 @@
     state.report.incidents = state.report.incidents || [];
     state.report.incidents.push({ title: def.title(ctx), wife: wife ? wife.first : null, text: [text, ...log].join(' ') });
     state.pending.shift();
+    drainNews(state, 0);
     { const v = IS.Raid && IS.Raid.offerVow(state); if (v) state.pending.push(v); }
     const f = state.farm;
     f.wealth = E.wealth(f); f.tier = E.tierOfFarm(f); f.tierLabel = IS.Start.TIER_LABEL[f.tier];

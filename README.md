@@ -96,3 +96,7 @@ Household drama (`js/data/kin-events.js`):
 - **The battle screen** (`js/core/battle.js`): burnings, Thing brawls and outlaw hunters are fought over up to four rounds between named men. Each round: hold the shield wall (safe), press the attack or go for their leader (gambles), break off, or (at the Thing) call the peacemakers. Defenders at a door or on a scree slope are hard to reach; hired guards and friends' men fight beside you.
 
 `node test/law.js` plays hostile districts through all of it.
+
+## The women of the house
+
+Weddings, a concubine brought home, and the death of a wife or concubine are now events of their own (`js/data/house-events.js`), shown before anything else in the season so nothing assumes you already know. A wedding: a great feast or a modest one, and with two wives, who gets the keys of the household. A funeral: a funeral feast or a quiet burial; her kin notice if she was unhappy, and a childless wife's dowry can be sent home to them (or kept, at the risk of a feud). The funeral shows a card in her memory.

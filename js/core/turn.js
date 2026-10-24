@@ -95,6 +95,7 @@
       if (p.id !== state.headId) removeFromHousehold(state, p.id);
       const m = state.marriages.find((x) => x.wifeId === p.id && x.status === 'married');
       if (m) m.status = 'wife died';
+      if (p.role === 'wife' || p.role === 'concubine') (state.news = state.news || []).push({ type: 'funeral', pid: p.id, hid: state.headId });
       if (p.motherId && age < 14 && state.people[p.motherId]) state.people[p.motherId].lastLossTurn = state.turn;
       out.push({ id: p.id, text: `${nameOf(p)} (${p.id === state.headId ? 'head of the house' : roleOf(p)}, ${age}) ${cause.text}.` });
     }
@@ -148,6 +149,7 @@
     const wordy = IS.Marriage.poetryBonus(state) >= 0.1;
     const r = IS.Marriage.newWife(state, rng, year);
     if (IS.Saga) IS.Saga.note(state, 'marriage', `He married ${N.fullName(r.wife)} of ${r.kinFarm}.`, 1.5);
+    (state.news = state.news || []).push({ type: 'wedding', pid: r.wife.id, lines: r.lines.slice(), wordy, second: had > 0 });
     rep.household.push(`You married ${N.fullName(r.wife)}, of ${r.kinFarm}. She brought ${fmt(r.dowry)} ells with her. You know only a little of her ways yet.`);
     if (wordy) rep.household.push('Your verses did part of your wooing: her family liked a man who could turn a phrase.');
     r.lines.forEach((l) => rep.household.push(l));
@@ -156,6 +158,7 @@
 
   function takeConcubine(state, rng, year, cost, rep) {
     const r = IS.Marriage.newConcubine(state, rng, year);
+    (state.news = state.news || []).push({ type: 'concubine', pid: r.woman.id, lines: r.lines.slice() });
     rep.household.push(`You took ${N.fullName(r.woman)} into the house as your concubine (${fmt(cost)} ells in gifts to her family).`);
     r.lines.forEach((l) => rep.household.push(l));
     if (state.household.wives.length) rep.honorParts.push({ d: -0.4, why: 'A concubine in the house of a married man' });

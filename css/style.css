@@ -11,6 +11,7 @@
   --lichen: #8d9786;     /* thread, quiet marks */
   --madder: #982821;     /* Honor, and only Honor */
   --ochre: #8a5a0c;      /* a warning: the plan falls short */
+  --well: #ccd3ce;       /* an opened section, a shade off the page */
   --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Cambria, Georgia, serif;
   --sans: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
   --measure: 38rem;
@@ -24,6 +25,7 @@
     --lichen: #6c7667;
     --madder: #d2594e;
     --ochre: #d9a441;
+    --well: #222624;
   }
 }
 
@@ -448,3 +450,9 @@ button, input { font: inherit; color: inherit; }
 .bt-log li:not(:first-child) { color: var(--stone); }
 @media (max-width: 40rem) { .bt-cols { grid-template-columns: 1fr; } }
 .case-line .case-item { display: block; }
+
+/* an opened plan line sits in a well a shade off the page, so the new controls stand out */
+.fold[open] { background: var(--well); border-radius: 3px; }
+.fold[open] > summary { padding-left: 0.9rem; padding-right: 0.75rem; }
+.fold[open] > .fold-body { padding: 0.4rem 0.9rem 1.1rem; }
+.fold[open] .row, .fold[open] .hg-row { border-bottom-color: rgba(127, 135, 130, 0.25); }
