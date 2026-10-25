@@ -118,3 +118,5 @@ More of the story now runs through the women of the house:
 
 **A saga boyhood** (`js/data/youth-events.js`): while the head is a boy, his own events come up. The ball game on the ice, where an older boy beats and mocks him, and he can bear it, wrestle, tell his champion, or fetch an axe as the young Egill did at Hvítá (a dead boy, a feud with his father, and a line in the saga). A first verse at a feast. What he should learn on winter evenings: law, arms, the farm or the old verses (up to four lessons). Grown men talking over his head at the Thing.
 
+**What came of it.** Every choice in an event now opens a short screen of its own before the next matter: the matter's title, what you chose, what happened, and the Honor and silver it cost or earned. (Not between the rounds of a fight or the steps of a hearing, which have their own screens.) The season report still lists them under "Matters you settled".
+

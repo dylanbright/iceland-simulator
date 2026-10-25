@@ -537,6 +537,26 @@
   }
 
 
+  /* ---------- what came of a choice ---------- */
+  function outcomeView(state, ctl) {
+    const o = state.outcome;
+    const more = state.mode === 'incident' && state.pending.length;
+    const nextLabel = state.mode === 'over' ? 'See how it ends' : more ? `Next matter (${(state.pendingTotal || state.pending.length) - state.pending.length + 1} of ${state.pendingTotal || state.pending.length})` : state.mode === 'plan' ? 'On to the planning' : 'On to the season in review';
+    const go = h('button', { class: 'btn btn-primary', type: 'button', onclick: () => ctl.dismissOutcome() }, nextLabel);
+    const signedD = (d) => (d > 0 ? '+' : d < 0 ? '−' : '') + Math.abs(d);
+    const main = h('main', { class: 'incident outcome' },
+      h('p', { class: 'inc-count' }, 'What came of it'),
+      h('h1', null, o.title),
+      o.choice ? h('p', { class: 'oc-choice' }, `You chose: ${o.choice}`) : null,
+      String(o.text).split(/(?<=[.!?])\s+(?=[A-Z\u00C0-\u00DE\u00DE])/).reduce((acc, sentence) => { const last = acc[acc.length - 1]; if (last && last.length < 260) acc[acc.length - 1] = last + ' ' + sentence; else acc.push(sentence); return acc; }, []).map((p) => h('p', { class: 'lede' }, p)),
+      o.parts.length || o.cash ? h('div', { class: 'oc-tally' },
+        o.parts.length ? h('ul', { class: 'honor-parts' }, o.parts.map((p) => h('li', null, h('span', { class: 'hp-d' }, signedD(p.d)), ' ', p.why))) : null,
+        o.cash ? h('p', { class: 'oc-cash' }, `${o.cash > 0 ? 'You gained' : 'It cost you'} ${fmt(Math.abs(o.cash))} ells.`) : null) : null,
+      h('div', { class: 'hero-actions' }, go));
+    setTimeout(() => go.focus(), 0);
+    return h('div', { class: 'page' }, bar(state, ctl, abandonButton(ctl)), h('main', { class: 'layout' }, main, ledger(state)));
+  }
+
   /* ---------- the season in review ---------- */
   function reportView(state, ctl) {
     const rep = state.report;
@@ -649,6 +669,7 @@
 
   IS.ui.playScreen = function (state, ctl, initialPlan) {
     document.onkeydown = null;
+    if (state.outcome) return outcomeView(state, ctl);
     if (state.mode === 'over') return overView(state, ctl);
     if (state.mode === 'incident') return incidentView(state, ctl);
     if (state.mode === 'report') return reportView(state, ctl);

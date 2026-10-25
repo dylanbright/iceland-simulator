@@ -375,15 +375,22 @@
     const opt = def.options(ctx).find((o) => o.id === optionId);
     if (!opt) return null;
     if (opt.cost && E.cashOf(state.farm) < opt.cost) return null;
+    const title = def.title(ctx), cash0 = E.cashOf(state.farm), parts0 = (state.report.honorParts || []).length;
     const text = opt.run();
     if (IS.Saga && head0.deathYear == null) IS.Saga.checkAmbition(state, (d, why) => ctx.honor(d, why), null);
     if (head0.deathYear != null) IS.Turn.headDied(state, rng);
     if (IS.Stable) IS.Stable.sync(state, rng);
     state.report.incidents = state.report.incidents || [];
-    state.report.incidents.push({ title: def.title(ctx), wife: wife ? wife.first : null, text: [text, ...log].join(' ') });
+    const full = [text, ...log].filter(Boolean).join(' ');
+    state.report.incidents.push({ title, wife: wife ? wife.first : null, text: full });
     state.pending.shift();
     drainNews(state, 0);
     { const v = IS.Raid && IS.Raid.offerVow(state); if (v) state.pending.push(v); }
+    // what came of it, shown on its own screen before the next matter (not between the rounds of a fight or the steps of a hearing)
+    const next = state.pending[0];
+    const chained = next && (next.id === 'battle' || /^law_(backer|plead|verdict)$/.test(next.id));
+    const parts = (state.report.honorParts || []).slice(parts0);
+    state.outcome = full && !chained ? { title, text: full, wife: wife ? wife.first : null, choice: opt.label, honor: Math.round(parts.reduce((s, p) => s + p.d, 0) * 10) / 10, parts: parts.map((p) => ({ d: Math.round(p.d * 10) / 10, why: p.why })), cash: Math.round(E.cashOf(state.farm) - cash0) } : null;
     const f = state.farm;
     f.wealth = E.wealth(f); f.tier = E.tierOfFarm(f); f.tierLabel = IS.Start.TIER_LABEL[f.tier];
     dropInvalid(state);

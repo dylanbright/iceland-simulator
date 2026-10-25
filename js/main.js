@@ -33,6 +33,7 @@
     choose(optionId) { IS.Household.choose(state, optionId); IS.Game.save(state); showGame(); },
     proceed() { IS.Turn.proceed(state); IS.Game.save(state); showGame(); },
     replan(plan) { showGame(plan, true); },
+    dismissOutcome() { state.outcome = null; IS.Game.save(state); showGame(); },
     abandon() { IS.Game.clearSave(); roll(IS.RNG.randomSeed()); },
   };
 
