@@ -484,7 +484,7 @@
     if (S === 'summer') {
       const cap = hayCapacity(f) * hayQuality(f);
       const target = Math.min(cap, hayNeed({ cattle: f.cattle * 1.15, sheep: f.sheep * 1.3, horses: f.horses * 1.1, condition: f.condition }, 'normal') * 1.1 - f.hay);
-      const handsWanted = Math.ceil(target / (C.HAY_PER_HAND * ph));
+      const handsWanted = Math.ceil(Math.max(0, target - 1) / (C.HAY_PER_HAND * ph)); // a hand for the last ton is a hand wasted
       L.hay = clamp(handsWanted, 0, rem);
       rem -= L.hay;
       const short = handsWanted - L.hay + (wf.people < 4 ? 1 : 0);

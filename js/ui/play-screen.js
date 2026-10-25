@@ -242,16 +242,28 @@
     const fishName = setting === 'coast' ? 'Fishing and fowling' : setting === 'river' ? 'Salmon and trout' : 'Fowling and lake fishing';
     const rate = (S === 'summer' ? C.FISH_SUMMER : C.FISH_WINTER)[setting];
     const L = {
-      hay: ['Haymaking', 'haymaking', () => `About ${C.HAY_PER_HAND} tons a hand. Your fields give at most ${t1(out.rep.hayCap || 0)}.`, () => `${t1(out.rep.hayMade || 0)} tons`],
+      hay: ['Haymaking', 'haymaking', () => {
+        const w = wastedHay();
+        return `About ${C.HAY_PER_HAND} tons a hand. Your fields give at most ${t1(out.rep.hayCap || 0)}.` + (w ? ` The field is full: ${w === 1 ? 'one hand cuts' : w + ' hands cut'} nothing extra. Put ${w === 1 ? 'it' : 'them'} to other work.` : '');
+      }, () => `${t1(out.rep.hayMade || 0)} tons${wastedHay() ? ' (field full)' : ''}`],
       fish: [fishName, 'fishing', () => `About ${rate} rations a hand${S === 'winter' ? ', less in a hard winter' : ''}.`, () => `${t1(out.rep.fish || 0)} rations`],
       weave: ['Weaving', 'weaving', () => `About ${C.WEAVE_PER_HAND} ells a hand. ${fmt(f.wool)} ells of wool to work.`, () => `${fmt(out.rep.woven || 0)} ells`],
       craft: ['Crafts and trade goods', 'crafts', () => `About ${S === 'summer' ? C.CRAFT_SUMMER : C.CRAFT_PER_HAND} ells a hand.`, () => `${fmt(out.rep.crafted || 0)} ells`],
       build: ['Repairs and manuring', 'repairs', teach ? () => 'Roofs, walls and the home field. Keeps the farm in good order.' : null, () => `buildings ${conditionWord(out.res.farm.condition)}`],
     };
+    /** Hands on haymaking beyond what the field can give: they cut nothing. */
+    function wastedHay() {
+      if (S !== 'summer' || !plan.labour.hay) return 0;
+      const per = C.HAY_PER_HAND * ((out.res.wf && out.res.wf.perHand) || 1);
+      // the fewest hands that cut all but the last ton the field can give
+      const needed = per > 0 ? Math.ceil(Math.max(0, (out.rep.hayCap || 0) - 1) / per) : plan.labour.hay;
+      return Math.max(0, plan.labour.hay - Math.max(1, needed));
+    }
     const work = fold('work', 'Work', () => {
       const xs = E.CATS[S].filter((c) => plan.labour[c] > 0).map((c) => `${plan.labour[c]} ${L[c][1]}`);
       const idle = unassigned();
-      return { text: xs.length ? list(xs) : 'Nobody given work', warn: idle ? `${nOf(idle, 'hand', 'hands')} idle` : null };
+      const wasted = wastedHay();
+      return { text: xs.length ? list(xs) : 'Nobody given work', warn: [idle ? `${nOf(idle, 'hand', 'hands')} idle` : '', wasted ? `${nOf(wasted, 'hand', 'hands')} on hay with nothing to cut` : ''].filter(Boolean).join('; ') || null };
     }, [
       teach ? liveText('p', 'sec-note', () => { const wf = out.res.wf; return `Herd chores take about ${t1(wf.chores)} hands' worth of your household's labour. ${wf.hands} hands are free to give out, ${unassigned()} not yet given.`; })
         : liveText('p', 'sec-note', () => `${out.res.wf.hands} hands free after herd chores, ${unassigned()} not yet given.`),
