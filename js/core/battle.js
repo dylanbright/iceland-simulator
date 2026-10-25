@@ -85,6 +85,8 @@
     duel:    { ours: 2.2, early: 2.2, late: 2.2, themBreak: 0, usBreak: 0, leaderFalls: 1 },
     // a hall attacked at night: surprise first, then a proper fight
     hall:    { ours: 1.15, early: 0.75, late: 1, themBreak: 0.5, usBreak: 0.4 },
+    // two lines on open meadow: nobody has the ground
+    field:   { ours: 1, early: 1, late: 1, themBreak: 0.5, usBreak: 0.45 },
   };
 
   /** Fight one round with the chosen stance. Mutates params. Returns { lines, end: null | outcome }. */

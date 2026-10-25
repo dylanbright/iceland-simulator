@@ -58,11 +58,14 @@
       options: (c) => [
         { id: 'yield', label: 'Give him the strip', desc: 'You lose some land. Honor −1.5.',
           run: () => { c.state.farm.landValue = Math.max(0, c.state.farm.landValue - 80); c.goodwill(c.p.farm, 4); c.honor(-1.5, `You gave up land to ${c.p.farm}`); return 'The strip is his. People say it was the easy way.'; } },
-        { id: 'firm', label: 'Stand firm', desc: 'Honor +1 if he backs down; −1.5 if it comes to a fight you lose. Goodwill falls.',
+        { id: 'firm', label: 'Stand firm', desc: 'Honor +1 if he backs down. If he does not, he will come to the stream with his men. Goodwill falls.',
           run: () => {
             c.goodwill(c.p.farm, -10);
             if (c.rng.chance(0.45 + c.head.attrs.honor / 250)) { c.honor(1, `You held your boundary against ${c.p.farm}`); return `${c.p.head} backed down. He will remember it.`; }
-            c.honor(-1.5, `A boundary quarrel you lost`); c.feud(c.p.farm, 'a boundary quarrel'); return `${c.p.head} brought his men, and you gave way. The matter is not closed.`;
+            const fam = c.state.families && c.state.families[c.p.farm];
+            const force = Math.max(2, Math.min(6, 1 + Math.round((fam ? fam.tier : 2) / 2) + c.rng.int(0, 2)));
+            c.state.pending.splice(1, 0, { id: 'boundary_standoff', wifeId: null, kind: 'event', params: { farm: c.p.farm, head: c.p.head, force } });
+            return `${c.p.head} did not back down. He sent word that he will be at the stream at dawn with his men, and that he will see you there.`;
           } },
         { id: 'arbitrate', label: 'Ask neighbors to judge it', cost: 30, desc: `${ells(30)} for the feast. Honor +0.5.`,
           run: () => { c.pay(30); c.goodwill(c.p.farm, 2); c.honor(0.5, 'A boundary settled by arbitration'); return 'The neighbors walked the line and ruled for the stone. Both sides accepted it, more or less.'; } },
