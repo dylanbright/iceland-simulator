@@ -120,5 +120,4 @@ More of the story now runs through the women of the house:
 
 **What came of it.** Every choice in an event now opens a short screen of its own before the next matter: the matter's title, what you chose, what happened, and the Honor and silver it cost or earned. (Not between the rounds of a fight or the steps of a hearing, which have their own screens.) The season report still lists them under "Matters you settled".
 
-**Boundary disputes can come to blows.** If you stand firm and the neighbor does not back down, he comes to the boundary stream at dawn with his men (more for a bigger house). You see both sides and choose: cross and fight on the battle screen (win and the strip stays yours, Honor +2), send to a friendly neighbor for men first, pay him to go home, or let him have the strip in front of everyone.
-
+**Boundary disputes can come to blows.** If you stand firm and the neighbor does not back down, he comes to the boundary stream at dawn with his men (more for a bigger house). You see both sides and choose: cross and fight on the battle screen (win and the strip stays yours, Honor +2), send to a friendly neighbor for men first, pay him to go home, or let him have the strip in front of everyone. Riding out to meet a neighbor's men when a feud flares (`feud_flare`) now goes through the same standoff and battle, at the edge of your home field.

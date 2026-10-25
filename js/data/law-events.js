@@ -315,26 +315,27 @@
 
     /* ---------- the boundary dispute comes to the stream ---------- */
     { id: 'boundary_standoff', w: 0, needs: () => null,
-      title: (c) => `${c.p.head} comes to the stream`,
+      title: (c) => (c.p.why === 'flare' ? `${c.p.head}'s men at the edge of your land` : `${c.p.head} comes to the stream`),
       body: (c) => {
         const men = F().men(c.state).length, ch = F().champion(c.state);
-        return [`At first light ${c.p.head} of ${c.p.farm} came down to the boundary stream with ${c.p.force} men behind him, armed, and stood on the far bank looking at the strip of meadow.`,
+        return [c.p.why === 'flare' ? `You found them at the edge of your home field: ${c.p.head} of ${c.p.farm} and ${c.p.force} men, armed, on horseback, looking at your barns as if they were counting them.` : `At first light ${c.p.head} of ${c.p.farm} came down to the boundary stream with ${c.p.force} men behind him, armed, and stood on the far bank looking at the strip of meadow.`,
           `You have ${men ? `${men} grown ${men === 1 ? 'man' : 'men'} of the house` : 'no grown men in the house'} to stand with you${ch && ch.id !== c.head.id ? `, and ${ch.first} at their head` : ''}. ${c.p.head} is waiting to see whether you will cross to meet him.`];
       },
       options: (c) => {
-        const spec = { kind: 'field', farm: c.p.farm, head: c.p.head, force: c.p.force, power: 0.8 };
+        const spec = { kind: 'field', farm: c.p.farm, head: c.p.head, force: c.p.force, power: 0.8, extra: { why: c.p.why || 'boundary' } };
         const friends = houses(c).filter((f) => f.farm !== c.p.farm && rel(c, f.farm) >= 20).sort((a, b) => rel(c, b.farm) - rel(c, a.farm));
         const fr = friends[0];
         const withFriends = fr ? Object.assign({}, spec, { friends: 3, friendFarm: fr.farm }) : null;
         const pay = 50 + 20 * c.tier;
         const opts = [
-          { id: 'fight', label: 'Cross the stream and meet him', desc: `${cap(B().oddsWord(c.state, spec))}. Win and the strip is yours, and Honor +2. Lose and it is his.`,
+          { id: 'fight', label: c.p.why === 'flare' ? 'Drive them off your land' : 'Cross the stream and meet him', desc: c.p.why === 'flare' ? `${cap(B().oddsWord(c.state, spec))}. Win and Honor +2.5. Lose and they will leave something burning.` : `${cap(B().oddsWord(c.state, spec))}. Win and the strip is yours, and Honor +2. Lose and it is his.`,
             run: () => { insertNext(c, B().start(c.state, c.rng, spec)); return 'You walked down to the water with your men behind you.'; } },
         ];
         if (fr) opts.push({ id: 'friends', label: `Send to ${fr.head.first} of ${fr.farm} for men first`, desc: `${cap(B().oddsWord(c.state, withFriends))} with three of his men beside yours. He will expect the favor returned.`,
           run: () => { c.goodwill(fr.farm, -3); insertNext(c, B().start(c.state, c.rng, withFriends)); return `A boy ran to ${fr.farm}, and three of ${fr.head.first}'s men came over the hill just as the sun cleared it.`; } });
-        opts.push({ id: 'buy', label: 'Offer him silver to go home', cost: pay, desc: `${ells(pay)}. The strip stays yours. Honor −0.5.`, run: () => { c.pay(pay); c.honor(-0.5, `You paid ${c.p.head} to leave your meadow alone`); c.goodwill(c.p.farm, 4); return `${c.p.head} weighed the silver in his hand and took his men home. He will remember that it worked.`; } });
-        opts.push({ id: 'yield', label: 'Let him have the strip', desc: 'Honor −2, in front of his men and yours.', run: () => { c.state.farm.landValue = Math.max(0, c.state.farm.landValue - 80); c.honor(-2, `You gave your meadow to ${c.p.head} without a fight`); c.goodwill(c.p.farm, 3); return `You did not cross. ${c.p.head} drove a stake into the strip and went home whistling.`; } });
+        opts.push({ id: 'buy', label: 'Offer him silver to go home', cost: pay, desc: `${ells(pay)}. ${c.p.why === 'flare' ? 'They go.' : 'The strip stays yours.'} Honor −0.5.`, run: () => { c.pay(pay); c.honor(-0.5, `You paid ${c.p.head} to leave your meadow alone`); c.goodwill(c.p.farm, 4); return `${c.p.head} weighed the silver in his hand and took his men home. He will remember that it worked.`; } });
+        if (c.p.why === 'flare') opts.push({ id: 'yield', label: 'Turn back without a fight', desc: 'Honor −2. They will be bolder next time.', run: () => { c.honor(-2, `You turned back from ${c.p.head}'s men`); F().escalate(c.state, c.p.farm, 1); return `You turned your horse. Behind you, someone laughed.`; } });
+        else opts.push({ id: 'yield', label: 'Let him have the strip', desc: 'Honor −2, in front of his men and yours.', run: () => { c.state.farm.landValue = Math.max(0, c.state.farm.landValue - 80); c.honor(-2, `You gave your meadow to ${c.p.head} without a fight`); c.goodwill(c.p.farm, 3); return `You did not cross. ${c.p.head} drove a stake into the strip and went home whistling.`; } });
         return opts;
       } },
 
@@ -358,13 +359,13 @@
 
     /* ---------- the battle screen ---------- */
     { id: 'battle', w: 0, needs: () => null,
-      title: (c) => ({ burning: 'The fight at the door', thing: 'The fight at the Alþing', hunters: 'They have found you', field: `The fight at the stream`, duel: `Single combat with ${c.p.head}`, hall: `The night attack on ${c.p.head}'s hall` }[c.p.kind] || 'A fight') + (c.p.kind === 'duel' ? '' : ` (round ${c.p.round})`),
+      title: (c) => ({ burning: 'The fight at the door', thing: 'The fight at the Alþing', hunters: 'They have found you', field: c.p.why === 'flare' ? `The fight in the home field` : `The fight at the stream`, duel: `Single combat with ${c.p.head}`, hall: `The night attack on ${c.p.head}'s hall` }[c.p.kind] || 'A fight') + (c.p.kind === 'duel' ? '' : ` (round ${c.p.round})`),
       body: (c) => [{
         burning: `${c.p.head}'s men are at the door with torches, and the yard is full of them.`,
         thing: `Your men and ${c.p.head}'s are at each other on the lava field, with the whole Alþing watching.`,
         hunters: `${c.p.head} and his men have come to kill you for the price on your head.`,
         duel: c.p.round === 1 ? `A square of cloaks is pegged out on the ground, as the law of single combat asks. ${c.p.head} steps onto it, the man who killed ${c.p.fallen}. His friends stand on one side, your crew on the other. Each of you has three shields. Nobody else may interfere.` : `You circle each other on the cloaks. ${c.p.head} is breathing hard, and so are you.`,
-        field: c.p.round === 1 ? `${c.p.head}'s men came down to the stream at dawn and stopped on the far bank. Then they crossed it.` : 'The two lines are at each other on the wet meadow.',
+        field: c.p.round === 1 ? (c.p.why === 'flare' ? `${c.p.head}'s men turned their horses toward you and dismounted.` : `${c.p.head}'s men came down to the stream at dawn and stopped on the far bank. Then they crossed it.`) : 'The two lines are at each other on the wet meadow.',
         hall: c.p.round === 1 ? `You and your crew came up from the ship in the dark. The door of ${c.p.head}'s hall is barred, and his men are waking inside.` : 'The fight in the hall goes on in the smoke and the dark.',
       }[c.p.kind], c.p.kind === 'duel' ? (c.p.round === 1 ? 'Choose how you fight this exchange.' : 'The fight goes on.') : c.p.round === 1 ? 'Choose how your side fights this round.' : 'The fight goes on.'],
       view: (c) => ({ battle: { round: c.p.round, max: c.p.maxRounds || B().MAX_ROUNDS, us: c.p.us, them: c.p.them, log: c.p.log, foe: c.p.head, duel: c.p.kind === 'duel' } }),
@@ -403,13 +404,20 @@
         if (theirLead && theirLead.hp > 0) opts.push({ id: 'leader', label: `Go for ${theirLead.name}`, desc: 'If he falls, his men may break. You will be exposed while you try.', run: go('leader') });
         if (P.kind === 'thing') opts.push({ id: 'peace', label: 'Call on the peacemakers', desc: 'They may get between the lines now that blood is up, or they may not.',
           run: () => (c.rng.chance(0.5) ? outcome(c, 'draw') : go('wall')()) });
-        opts.push({ id: 'fall', label: fall, desc: { burning: 'Your people live. The house does not.', thing: 'Honor −1.5. Nobody else dies today.', hunters: 'You may get away. You will lose ground and blood.', field: 'The strip is his. Nobody else dies today.', hall: 'He lives, and the oath stands.' }[P.kind], run: () => outcome(c, 'fled') });
+        opts.push({ id: 'fall', label: fall, desc: { burning: 'Your people live. The house does not.', thing: 'Honor −1.5. Nobody else dies today.', hunters: 'You may get away. You will lose ground and blood.', field: P.why === 'flare' ? 'They burn a shed on their way out. Nobody else dies today.' : 'The strip is his. Nobody else dies today.', hall: 'He lives, and the oath stands.' }[P.kind], run: () => outcome(c, 'fled') });
         return opts;
       } },
   ];
 
   B().OUTCOME.field = (c, end, n) => {
     const P = c.p, loseStrip = () => { c.state.farm.landValue = Math.max(0, c.state.farm.landValue - 80); };
+    if (P.why === 'flare') {
+      if (end === 'won') { c.honor(2.5, `You drove ${P.head}'s men off your land`); c.goodwill(P.farm, -8); return `${P.head}'s men broke and galloped for home.${n ? ` ${n} of them did not ride with them.` : ''} You will hear from him again.`; }
+      if (end === 'draw') { c.honor(0.5, `You faced down ${P.head}'s men`); return 'Both sides drew back. They rode home, and you rode home, and nothing was settled.'; }
+      c.state.farm.condition = Math.max(0, c.state.farm.condition - 8); F().escalate(c.state, P.farm, 1);
+      if (end === 'fled') { c.honor(-2, `You fell back before ${P.head}'s men`); return 'You pulled back to the house. They set fire to a shed on their way out, to make the point.'; }
+      c.honor(-2.5, `You were bested by ${P.head}'s men`); return 'They were more than a match for you, and they left a shed burning behind them.';
+    }
     F().ensure(c.state, P.farm, 'a boundary quarrel that came to blows');
     if (end === 'won') { c.honor(2, `You held your boundary against ${P.head} by force`); c.goodwill(P.farm, -15); note(c, 'boundary', `When ${P.head} of ${P.farm} came to take a strip of his meadow by force, he met him at the stream and drove him off.`, 2.5); return `${P.head}'s men broke and splashed back across the stream.${n ? ` ${n} of them stayed on your side of it.` : ''} The stone is still the boundary.`; }
     if (end === 'draw') { c.honor(0.5, `You stood your ground at the stream`); return `Neither side would give way, and at last both drew back to their own banks. The stone stands, for now.`; }
