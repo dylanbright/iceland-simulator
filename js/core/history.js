@@ -253,7 +253,7 @@
     const head = state.people[state.headId];
     if (!head || head.id !== r.heirId) { state.regency = null; return; }
     if (state.turn + 1 >= r.until || E().yearOf(state) - head.birthYear >= 16) {
-      if (r.kind === 'foster') { head.attrs.law = Math.min(95, head.attrs.law + 6); head.attrs.strength = Math.min(95, head.attrs.strength + 4); }
+      if (r.kind === 'foster') { head.attrs.law = Math.min(95, head.attrs.law + 6); head.peak.strength = Math.min(95, head.peak.strength + 4); IS.Person.refresh(head, E().yearOf(state)); }
       state.pending.push({ id: 'house_comingofage', wifeId: null, kind: 'event', params: { kind: r.kind, regentName: r.regentName || '', farm: r.farm || '' } });
       state.regency = null;
       return;

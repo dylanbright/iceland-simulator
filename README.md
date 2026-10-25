@@ -116,3 +116,5 @@ More of the story now runs through the women of the house:
 
 **A boy does not fight.** While the head is under sixteen, the house's strongest grown man is its champion (`Feud.champion`): fight odds use his Strength, he takes the wounds, he leads in battles (the boy stays out of them), and he goes to the island in a duel. Fighting events say who will fight in the boy's name, and with no grown man in the house the duel is not offered at all.
 
+**A saga boyhood** (`js/data/youth-events.js`): while the head is a boy, his own events come up. The ball game on the ice, where an older boy beats and mocks him, and he can bear it, wrestle, tell his champion, or fetch an axe as the young Egill did at Hvítá (a dead boy, a feud with his father, and a line in the saga). A first verse at a feast. What he should learn on winter evenings: law, arms, the farm or the old verses (up to four lessons). Grown men talking over his head at the Thing.
+
