@@ -254,7 +254,10 @@
     const others = kids.filter((p) => p.id !== heir.id);
     const otherSons = others.filter((p) => p.sex === 'M');
     const W = 1.5 + otherSons.length + 0.5 * others.filter((p) => p.sex === 'F').length;
-    const leavers = otherSons.filter((p) => year - p.birthYear >= 18);
+    // a rival claim: the heir is a boy and a grown son of the house stands by, or a concubine's elder son outranks him in years
+    const elder = otherSons.filter((p) => year - p.birthYear >= 18 && p.birthYear < heir.birthYear).sort(bySon)[0] || null;
+    const rival = elder && heir.role !== 'brother' && (year - heir.birthYear < 16 || (elder.legit === false && heir.legit !== false)) ? elder : null;
+    const leavers = otherSons.filter((p) => year - p.birthYear >= 18 && p !== rival);
     const payouts = [];
     for (const b of leavers) {
       const share = 1 / W;
@@ -300,8 +303,14 @@
       heir.attrs.honor = r1(clamp(heir.attrs.honor - 6, 1, 100));
       lines.push('He is a concubine\'s son, and not every man in the district accepts his claim.');
     }
-    if (age < 16) lines.push(`He is only ${age}. The household and his mother keep the farm going until he is grown.`);
+    if (age < 16) lines.push(`He is only ${age}. Someone will have to hold the farm until he is grown.`);
     rep.succession = { text: lines[0], lines };
+    // the death, the question of who sits in the high seat, and who holds the farm for a boy: told as events, first thing
+    state.regency = null;
+    state.news = state.news || [];
+    state.news.push({ type: 'headdeath', did: old.id, heirId: heir.id, year });
+    if (rival) state.news.push({ type: 'succession', heirId: heir.id, rivalId: rival.id, share: Math.round(E.wealth(f) / W * 0.5) });
+    else if (age < 16) state.news.push({ type: 'regency', heirId: heir.id });
     return true;
   }
 
@@ -468,5 +477,21 @@
     return state;
   }
 
-  IS.Turn = { OMEN, omenOf: (state) => OMEN[state.env.omen + 2], prepare, drawEnv, resolve, proceed, summary, snapshot, rngOf, removeFromHousehold, headDied };
+  /** Put a different son of the old head in the high seat (after a contested succession). */
+  function switchHead(state, newId, rng) {
+    const hh = state.household, people = state.people;
+    const oldHeir = people[state.headId], nh = people[newId];
+    if (!nh || nh.deathYear != null || nh.id === oldHeir.id) return false;
+    removeFromHousehold(state, nh.id);
+    oldHeir.role = 'brother'; hh.kin.push(oldHeir.id);
+    for (const id of hh.kin) { const w = people[id]; if (w && (w.role === 'mother' || w.role === 'stepmother')) w.role = w.id === nh.motherId ? 'mother' : 'stepmother'; }
+    state.headId = nh.id; nh.role = 'head';
+    if (!nh.traits.length) nh.traits = T.rollHusband(rng, oldHeir.traits || []);
+    if (nh.temper === 'hot' && !nh.traits.includes('hotheaded')) nh.traits = nh.traits.filter((t) => t !== 'cautious' && t !== 'peaceable').concat('hotheaded');
+    P.assignByname(rng, nh);
+    nh.attrs.honor = oldHeir.attrs.honor;
+    return true;
+  }
+
+  IS.Turn = { switchHead, OMEN, omenOf: (state) => OMEN[state.env.omen + 2], prepare, drawEnv, resolve, proceed, summary, snapshot, rngOf, removeFromHousehold, headDied };
 })();

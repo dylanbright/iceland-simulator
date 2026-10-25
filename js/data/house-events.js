@@ -181,6 +181,138 @@
           run: () => { happy(w, -14); c.goodwill(c.p.kinFarm, -20); return `${c.p.kinHead} left without eating. ${w ? w.first : 'Your wife'} walked him to his horse and did not come back inside for a long time.`; } });
         return opts;
       } },
+
+    /* ---------- the death of the head of the house ---------- */
+    { id: 'house_headdeath', w: 0, needs: () => null,
+      title: (c) => { const o = c.state.people[c.p.did]; return `${o ? IS.Names.fullName(o) : 'The head of the house'} is dead`; },
+      body: (c) => {
+        const o = c.state.people[c.p.did], h = c.state.people[c.p.heirId] || c.head;
+        if (!o) return ['The head of the house is dead.'];
+        const dh = (c.state.deadHeads || []).filter((d) => d.id !== o.id).slice(-1)[0];
+        const since = dh ? dh.died : c.state.startYear, years = Math.max(1, (o.deathYear || c.p.year) - since);
+        const ep = IS.Saga ? IS.Saga.epitaph(c.state, o.id, o.first) : [];
+        const age = IS.Economy.yearOf(c.state) - h.birthYear;
+        const out = [`${IS.Names.fullName(o)}, master of ${c.state.farm.name}, ${String(o.deathText || 'died').replace(/\.$/, '')}. He was ${o.deathAge || ''} winters old, and had held the farm for ${years} ${years === 1 ? 'year' : 'years'}.`];
+        if (ep.length) out.push(`People are already saying what they will remember of him. ${ep.join(' ')}`);
+        const young = age < 3 ? `, though he is a child of ${age === 1 ? 'one' : age < 1 ? 'a few months' : 'two'} still carried on his mother's hip` : age < 10 ? `, though he is only ${age} and his feet do not reach the floor` : age < 16 ? `, though he is only ${age}` : '';
+        out.push(h.id === c.state.headId ? `Now ${IS.Names.fullName(h)} sits in the high seat${young}.` : 'The household is waiting to see who will sit in the high seat.');
+        return out;
+      },
+      view: (c) => {
+        const o = c.state.people[c.p.did];
+        if (!o) return null;
+        const dh = (c.state.deadHeads || []).find((d) => d.id === o.id);
+        return { card: { title: 'In memory', rows: [['Name', IS.Names.fullName(o)], ['Lived', `${o.birthYear} to ${o.deathYear || c.p.year}`], ['Honor', dh ? `${dh.honor}, ${IS.ui && IS.ui.honorWord ? IS.ui.honorWord(dh.honor) : ''}` : '?'], ['Death', String(o.deathText || '').replace(/\.$/, '')]] } };
+      },
+      options: (c) => {
+        const o = c.state.people[c.p.did], dh = (c.state.deadHeads || []).find((d) => d.id === (o && o.id));
+        const christian = c.state.faith === 'christian' || IS.Economy.yearOf(c.state) >= 1000;
+        const rites = 60 + 30 * c.tier, erfi = 80 + 40 * c.tier, great = dh && dh.honor >= 55;
+        const name = o ? o.first : 'him';
+        const opts = [];
+        if (christian) opts.push({ id: 'church', label: 'Bury him at the church, with a priest to sing over him', cost: rites, desc: `${ells(rites)}. Honor +1.5. The new way, and the district will see it done well.`,
+          run: () => { c.pay(rites); c.honor(1.5, `${name}'s burial at the church`); return `They buried ${name} by the church wall, and the priest sang in Latin over him. Half the district came.`; } });
+        else opts.push({ id: 'mound', label: 'Raise a great mound and lay him in it, armed, with his best horse', cost: rites, desc: `${ells(rites)} and a horse. Honor +2.5. The old way, and men will point to the mound for a hundred years.`,
+          run: () => { c.pay(rites); if (c.state.farm.horses > 0) c.state.farm.horses -= 1; c.honor(2.5, `The mound raised over ${name}`); if (IS.Saga) IS.Saga.note(c.state, 'burial', `They raised a great mound over ${name} and laid him in it with his weapons and his horse.`, 1.5); return `They laid ${name} in the mound sitting up, with his sword across his knees and his horse beside him, and closed it with turf. It can be seen from the sea.`; } });
+        opts.push({ id: 'erfi', label: 'Hold the inheritance feast, and take the high seat before the whole district', cost: erfi, desc: `${ells(erfi)}. Honor +2, and every neighbor who drinks your ale thinks a little better of the new master.`,
+          run: () => { c.pay(erfi); c.honor(2, `The inheritance feast for ${name}`); for (const f of Object.values(c.state.families || {})) if (f.head && f.farm !== c.state.farm.name) c.goodwill(f.farm, 3); return `The erfi lasted three days. On the last night the heir drank the memorial cup, stood, and stepped up into the high seat, and the hall roared.`; } });
+        opts.push({ id: 'plain', label: 'Bury him simply', desc: great ? `He was a man of standing, and people expected more. Honor −1.` : 'A grave, a few words, and back to work.',
+          run: () => { if (great) c.honor(-1, `${name} was buried meanly`); return `${name} was buried on the slope above the home field. It was quickly done.`; } });
+        return opts;
+      } },
+
+    /* ---------- who sits in the high seat ---------- */
+    { id: 'house_succession', w: 0, needs: () => null,
+      title: () => 'Who takes the high seat?',
+      body: (c) => {
+        const h = c.state.people[c.p.heirId], r = c.state.people[c.p.rivalId];
+        if (!h || !r) return ['The question of the high seat has settled itself.'];
+        const ha = c.age(h), ra = c.age(r);
+        return [`By law the farm goes to ${h.first}${h.legit === false ? '' : ', the lawful son'}. He is ${ha}${ha < 16 ? ', a boy' : ''}.`,
+          `But ${r.first} is ${ra}, a grown man${r.legit === false ? ', though a concubine\'s son' : ', and the elder'}, and half the household already looks to him when something needs deciding. ${r.legit === false && h.legit !== false ? "The boy's mother's kin will not take it quietly if he is passed over." : 'Nobody has said anything yet. Everyone is thinking it.'}`];
+      },
+      view: (c) => {
+        const h = c.state.people[c.p.heirId], r = c.state.people[c.p.rivalId];
+        if (!h || !r) return null;
+        const row = (p) => `${c.age(p)}, Strength ${Math.round(p.attrs.strength)}, Law ${Math.round(p.attrs.law)}${p.legit === false ? ', a concubine\'s son' : ''}`;
+        return { card: { title: 'The claimants', rows: [[h.first, row(h)], [r.first, row(r)]] } };
+      },
+      options: (c) => {
+        const h = c.state.people[c.p.heirId], r = c.state.people[c.p.rivalId];
+        if (!h || !r || r.deathYear != null) return [{ id: 'ok', label: 'Go on', desc: '', run: () => '' }];
+        const share = Math.max(40, Math.min(c.p.share || 200, Math.round(IS.Economy.cashOf(c.state.farm) * 0.6)));
+        return [
+          { id: 'heir', label: `Keep ${h.first} in the high seat`, desc: `The law is kept. ${r.first} takes his share of the movables, about ${ells(share)}, and goes, and he may not go as a friend.`,
+            run: () => {
+              c.pay(share); c.honor(0.5, 'You kept the law of inheritance');
+              c.removePerson(r.id); r.role = 'brother (living apart)'; (c.state.away = c.state.away || []).push(r.id);
+              let t = `${r.first} took his share and rode out of the yard without looking back.`;
+              if (c.rng.chance(0.35) && IS.History) { const farm = IS.History.brotherFarm(c.state, r, -45); IS.Feud.ensure(c.state, farm, `the high seat ${r.first} was denied`); t += ` He has built a farm at ${farm}, and he says the high seat should have been his.`; }
+              if (c.age(h) < 16) c.state.pending.splice(1, 0, { id: 'house_regency', wifeId: null, kind: 'event', params: { heirId: h.id } });
+              return t;
+            } },
+          { id: 'rival', label: `Give the high seat to ${r.first}`, desc: `A grown man holds the farm. ${r.legit === false ? 'Honor −4: a concubine\'s son over the lawful heir. ' : ''}${h.first} stays as his brother.`,
+            run: () => {
+              const mother = h.motherId && c.state.people[h.motherId];
+              IS.Turn.switchHead(c.state, r.id, c.rng);
+              if (r.legit === false && h.legit !== false) { c.state.people[r.id].attrs.honor = Math.max(1, c.state.people[r.id].attrs.honor - 4); if (mother && mother.kin) c.goodwill(mother.kin.farm, -20); }
+              if (mother && mother.attrs) mother.attrs.happiness = Math.max(0, mother.attrs.happiness - 20);
+              if (IS.Saga) IS.Saga.note(c.state, 'succession', `${r.first} took the high seat over his younger brother ${h.first}.`, 1.5);
+              return `${r.first} stepped up into the high seat. ${h.first} watched from the bench${mother ? `, and his mother ${mother.first} did not watch at all` : ''}.`;
+            } },
+        ];
+      } },
+
+    /* ---------- a boy in the high seat ---------- */
+    { id: 'house_regency', w: 0, needs: () => null,
+      title: (c) => { const h = c.state.people[c.p.heirId] || c.head, a = c.age(h); return a < 2 ? `${h.first} is a baby` : `${h.first} is only ${a}`; },
+      body: (c) => { const h = c.state.people[c.p.heirId] || c.head; return [`${h.first} is the master of ${c.state.farm.name} now, and he is ${c.age(h)} ${c.age(h) === 1 ? 'year' : 'years'} old. Someone has to hold the farm for him until he is sixteen: drive the bargains, answer the neighbors, stand at the Thing.`, 'Whoever holds it will hold it the way they think best.']; },
+      options: (c) => {
+        const h = c.state.people[c.p.heirId] || c.head, y = IS.Economy.yearOf(c.state);
+        const until = c.state.turn + Math.max(1, 16 - c.age(h)) * 2;
+        const kin = c.state.household.kin.map((id) => c.state.people[id]).filter((p) => p && p.deathYear == null);
+        const mother = kin.find((p) => p.role === 'mother' && y - p.birthYear >= 20);
+        const uncle = kin.filter((p) => p.sex === 'M' && y - p.birthYear >= 20 && p.id !== h.id).sort((a, b) => b.attrs.husbandry - a.attrs.husbandry)[0];
+        const friend = Object.values(c.state.families || {}).filter((f) => f.head && f.farm !== c.state.farm.name && ((c.state.relations || {})[f.farm] || 0) >= 10).sort((a, b) => (c.state.relations[b.farm] || 0) - (c.state.relations[a.farm] || 0))[0];
+        const eff = (p) => Math.max(0.78, Math.min(0.97, 0.8 + p.attrs.husbandry / 450 + ((p.traits || []).includes('capable') ? 0.04 : 0)));
+        const set = (r) => { c.state.regency = Object.assign({ until, heirId: h.id }, r); };
+        const opts = [];
+        if (mother) opts.push({ id: 'mother', label: `His mother ${mother.first} holds the farm`, desc: `She knows the household better than anyone (husbandry ${Math.round(mother.attrs.husbandry)}). Steady, if not bold.`,
+          run: () => { set({ kind: 'mother', regentId: mother.id, regentName: mother.first, eff: eff(mother) }); return `${mother.first} took the keys and the high seat's cushion, and told the household that nothing would change. A great deal changed, but quietly.`; } });
+        if (uncle) opts.push({ id: 'kin', label: `${uncle.first}, his kinsman, holds the farm`, desc: `A grown man to deal with the neighbors (husbandry ${Math.round(uncle.attrs.husbandry)}). Some men grow used to a high seat.`,
+          run: () => { set({ kind: 'kin', regentId: uncle.id, regentName: uncle.first, eff: eff(uncle), risk: 0.05 }); return `${uncle.first} moved his things into the master's bed-closet. He says it is only until the boy is grown.`; } });
+        if (friend) opts.push({ id: 'foster', label: `Send ${h.first} to be fostered at ${friend.farm}`, desc: `${friend.head.first} raises him as his own, and your houses become close. The household runs the farm in the meantime, and the boy comes home better taught.`,
+          run: () => { const d = IS.Raid ? IS.Raid.deputies(c.state)[0] : null; set({ kind: 'foster', farm: friend.farm, regentName: d ? d.name : 'the household', eff: d ? Math.max(0.78, Math.min(0.95, 0.78 + d.husbandry / 450)) : 0.8 }); c.goodwill(friend.farm, 25); if (IS.Feud && IS.Feud.shiftBond) {} return `${h.first} rode to ${friend.farm} behind ${friend.head.first}'s saddle. Fostering binds two houses like blood.`; } });
+        opts.push({ id: 'household', label: 'The household runs it together', desc: 'Nobody in charge, everybody with an opinion. The farm will do less well.', run: () => { set({ kind: 'household', regentName: 'the household', eff: 0.8 }); return 'The servants, the women and the old men run the farm between them, and argue about everything.'; } });
+        return opts;
+      } },
+
+    { id: 'house_comingofage', w: 0, needs: () => null,
+      title: (c) => `${c.head.first} comes of age`,
+      body: (c) => [c.p.kind === 'foster' ? `${c.head.first} has come home from ${c.p.farm}, sixteen, taller than anyone expected and full of ${c.p.farm}'s opinions. He has learned the law at his foster-father's table and the sword in his yard.` : `${c.head.first} is sixteen. This spring he sat in the high seat for the first time as its master, not as a boy being humored, and ${c.p.regentName || 'whoever had held the farm'} stepped down.`],
+      options: (c) => [
+        { id: 'gift', label: c.p.kind === 'foster' ? `Send a gift to ${c.p.farm}` : `Give ${c.p.regentName} a gift for the years of keeping`, cost: 40, desc: `${ells(40)}. Honor +0.5. Gratitude is remembered.`, run: () => { c.pay(40); c.honor(0.5, 'You thanked those who held the farm for you'); if (c.p.farm) c.goodwill(c.p.farm, 10); return 'The gift was well received, and the story of it went round the district.'; } },
+        { id: 'go', label: 'Take up the work', desc: 'There is a great deal of it.', run: () => 'You walked the boundaries, counted the stock, and found out what the farm really looks like.' },
+      ] },
+
+    { id: 'house_usurper', w: 0, needs: () => null,
+      title: (c) => `${c.p.name} would keep the high seat`,
+      body: (c) => [`${c.p.name}, who holds the farm until ${c.head.first} is grown, has started speaking as if it were his own. He has made bargains in his own name, and he told a neighbor that a boy is no master for a farm like this one.`, 'The household is waiting to see what happens.'],
+      options: (c) => {
+        const r = c.state.people[c.p.rid], p = Math.min(0.85, 0.45 + c.head.attrs.honor / 200), buy = 80 + 40 * c.tier;
+        const out = () => { if (r && r.deathYear == null) c.removePerson(r.id); c.state.regency = Object.assign({}, c.state.regency, { kind: 'household', regentId: null, regentName: 'the household', eff: 0.8, risk: 0 }); };
+        return [
+          { id: 'stand', label: 'Rally the household and the neighbors behind the boy', desc: `${cap(IS.Feud.oddsWord(p))}. If it fails, ${c.p.name} takes what he can carry and becomes an enemy.`,
+            run: () => {
+              if (c.rng.chance(p)) { out(); c.honor(1, `The household stood behind ${c.head.first}`); return `The household and two neighbors stood in the yard behind the boy. ${c.p.name} looked at them for a long time, then packed his things.`; }
+              const take = Math.round(IS.Economy.cashOf(c.state.farm) * 0.3); c.pay(take); out();
+              const farm = IS.History.brotherFarm(c.state, { first: c.p.name }, -50); IS.Feud.ensure(c.state, farm, `the high seat he tried to take`);
+              return `${c.p.name} left with ${ells(take)} of the farm's silver and half the stories about you. He has settled at ${farm} and calls himself wronged.`;
+            } },
+          { id: 'buy', label: 'Pay him to step down', cost: buy, desc: `${ells(buy)}. He goes quietly.`, run: () => { c.pay(buy); out(); return `${c.p.name} counted the silver and found that he had always meant to step down.`; } },
+          { id: 'yield', label: 'Let him hold it as he likes until the boy is grown', desc: 'Honor −2. The farm is his in all but name for now.', run: () => { c.honor(-2, `${c.p.name} ruled ${c.state.farm.name} in the boy's name`); if (c.state.regency) c.state.regency.risk = 0; return `${c.p.name} sits in the high seat now, and the boy sits beside it.`; } },
+        ];
+      } },
   ];
 
   /** A widow's young children, still in the house. */

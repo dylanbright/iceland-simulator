@@ -152,7 +152,7 @@
     S = S || seasonOf(state);
     const Y = yearOf(state), T = C.TREAT[treatment || 'fair'];
     let total = 0, need = 0, cloth = 0, thralls = 0, adults = 0, n = 0;
-    const eff = state.expedition && state.turn < state.expedition.untilTurn && IS.Raid ? IS.Raid.stewardEff(state) : 1;
+    const eff = state.expedition && state.turn < state.expedition.untilTurn && IS.Raid ? IS.Raid.stewardEff(state) : state.regency && state.regency.eff ? state.regency.eff : 1;
     for (const p of members(state)) {
       const age = Y - p.birthYear;
       let wp = workPower(p, age, T);

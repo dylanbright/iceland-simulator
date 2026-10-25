@@ -219,5 +219,12 @@
     return { title: `The saga of the people of ${(state.origin && state.origin.farm) || state.farm.name}`, chapters: heads.map((x, i) => chapter(state, x, i)), score: sc, rating: tier[1], ratingNote: tier[2] };
   }
 
-  IS.Saga = { ROUTINE, note, death, stat, AMB, makeAmbition, choices, seedAmbition, checkAmbition, hintOf, third, write, score, TIERS };
+  /** The two or three things people will say of a dead head, for his funeral. */
+  function epitaph(state, headId, first) {
+    const all = (state.chronicle || []).filter((e) => e.h === headId && ((e.k === 'deed' && /^(You|Your)\b/.test(e.x)) || e.k === 'ambition' || e.k === 'vow' || e.k === 'law' || e.k === 'migration' || e.k === 'burning' || e.k === 'famine' || e.k === 'vinland'));
+    const pick = all.slice().sort((a, b) => Math.abs(b.w) - Math.abs(a.w)).slice(0, 3).sort((a, b) => a.t - b.t);
+    return pick.map((e) => (e.k === 'deed' ? third(e.x, first) : e.x.replace(/^He\b/, first)));
+  }
+
+  IS.Saga = { epitaph, ROUTINE, note, death, stat, AMB, makeAmbition, choices, seedAmbition, checkAmbition, hintOf, third, write, score, TIERS };
 })();

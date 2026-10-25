@@ -502,6 +502,8 @@
       h('p', { class: 'beats' }, `This season: ${beats}.`),
       state.ambition ? h('p', { class: 'ambition' }, h('span', { class: 'amb-k' }, state.ambition.doneTurn != null ? 'Ambition fulfilled' : 'The family’s ambition'), ' ',
         h('b', null, state.ambition.text + '.'), state.ambition.doneTurn == null ? ' ' + IS.Saga.hintOf(state.ambition) : '') : null,
+      state.regency ? h('p', { class: 'ambition case-line' }, h('span', { class: 'amb-k' }, 'A boy in the high seat'),
+        `${state.regency.kind === 'foster' ? `You are being fostered at ${state.regency.farm}; ${state.regency.regentName} keeps the farm` : state.regency.kind === 'household' ? 'The household runs the farm between them' : `${state.regency.regentName} holds the farm`} until you come of age in ${IS.Calendar.turnInfo(state.regency.until, state.startYear).year}.`) : null,
       (state.cases || []).length ? h('p', { class: 'ambition case-line' }, h('span', { class: 'amb-k' }, 'Before the Alþing'),
         state.cases.map((cs) => h('span', { class: 'case-item' }, h('b', null, cs.side === 'plaintiff' ? `Your case against ${cs.head} of ${cs.farm}` : `${cs.head} of ${cs.farm}'s case against you`), `, for ${IS.Law.chargeWord(cs)}. Heard in the summer of ${IS.Calendar.turnInfo(cs.hearing, state.startYear).year}.`))) : null,
       h('div', { class: 'plan-tools' },

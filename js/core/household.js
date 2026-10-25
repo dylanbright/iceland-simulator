@@ -289,6 +289,8 @@
     const news = state.news || [];
     if (!news.length) return;
     state.news = [];
+    const order = { headdeath: 0, succession: 1, regency: 2 };
+    news.sort((a, b) => (order[a.type] ?? 9) - (order[b.type] ?? 9));
     const items = news.map((n) => ({ id: 'house_' + n.type, wifeId: n.type === 'wedding' ? n.pid : null, kind: 'event', params: Object.assign({}, n, { pid: undefined, wid: n.pid }) }));
     state.pending.splice(at, 0, ...items);
     state.pendingTotal = (state.pendingTotal || 0) + items.length;

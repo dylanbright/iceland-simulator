@@ -243,6 +243,27 @@
     wivesQuarrel(state, rng, ctx);
     whetting(state, rng);
     widows(state, rng);
+    regency(state, rng);
+  }
+
+  /** A boy's years under a regent: the end of them, and the kinsman who would rather not step down. */
+  function regency(state, rng) {
+    const r = state.regency;
+    if (!r) return;
+    const head = state.people[state.headId];
+    if (!head || head.id !== r.heirId) { state.regency = null; return; }
+    if (state.turn + 1 >= r.until || E().yearOf(state) - head.birthYear >= 16) {
+      if (r.kind === 'foster') { head.attrs.law = Math.min(95, head.attrs.law + 6); head.attrs.strength = Math.min(95, head.attrs.strength + 4); }
+      state.pending.push({ id: 'house_comingofage', wifeId: null, kind: 'event', params: { kind: r.kind, regentName: r.regentName || '', farm: r.farm || '' } });
+      state.regency = null;
+      return;
+    }
+    if (r.kind === 'kin' && r.risk && rng.chance(r.risk)) {
+      const p = state.people[r.regentId];
+      if (!p || p.deathYear != null) { r.risk = 0; return; }
+      r.risk = 0;
+      state.pending.push({ id: 'house_usurper', wifeId: null, kind: 'event', params: { rid: p.id, name: p.first } });
+    }
   }
 
   IS.History = { FAMINE, isFamine, adjustEnv, winterSev, faithOf, SCHEDULE, migrate, tick, hotSon, sonsOf, brotherFarm, GREEN_FARMS };
