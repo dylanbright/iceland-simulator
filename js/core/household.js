@@ -37,6 +37,9 @@
     const rep = state.report;
     const ctx = {
       state, rng, wife, head, p: params || {}, tier: E.tierOfFarm(state.farm),
+      /** The man who fights for the house: the head, or for a boy head his strongest grown kinsman. */
+      get fighter() { return (IS.Feud && IS.Feud.champion(state)) || head; },
+      get minor() { return E.yearOf(state) - head.birthYear < 16; },
       wname: wife ? wife.first : '',
       has: (t) => !!wife && wife.traits.includes(t),
       pay: (x) => E.pay(state.farm, x),
@@ -344,10 +347,17 @@
     const wife = item.wifeId ? state.people[item.wifeId] : null;
     const ctx = makeCtx(state, rngOf(state), wife, item.params, []);
     const cash = E.cashOf(state.farm);
+    let body = def.body(ctx);
+    const opts0 = def.options(ctx);
+    // a boy at the head of the house does not fight himself: say who does
+    if (ctx.minor && item.id !== 'battle' && opts0.some((o) => /odds|Strength|fight|duel|island|ride|strike/i.test((o.label || '') + ' ' + (o.desc || '')))) {
+      const ch = IS.Feud && IS.Feud.champion(state), age = E.yearOf(state) - ctx.head.birthYear;
+      body = body.concat(ch ? [`You are ${age}. If it comes to blows, ${ch.first} (Strength ${Math.round(ch.attrs.strength)}) will fight in your name.`] : [`You are ${age}, and there is no grown man in the house to fight for you.`]);
+    }
     return {
       id: item.id, number: (state.pendingTotal || state.pending.length) - state.pending.length + 1, total: state.pendingTotal || state.pending.length,
-      kind: item.kind || 'incident', title: def.title(ctx), body: def.body(ctx), wife: wife ? wifeCard(state, wife) : null,
-      options: def.options(ctx).map((o) => ({ id: o.id, label: o.label, desc: o.desc, cost: o.cost || 0, disabled: !!o.cost && cash < o.cost })),
+      kind: item.kind || 'incident', title: def.title(ctx), body, wife: wife ? wifeCard(state, wife) : null,
+      options: opts0.map((o) => ({ id: o.id, label: o.label, desc: o.desc, cost: o.cost || 0, disabled: !!o.cost && cash < o.cost })),
       view: def.view ? def.view(ctx) : null,
     };
   }

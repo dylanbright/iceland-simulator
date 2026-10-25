@@ -130,7 +130,7 @@
       body: (c) => [`The quarrel with ${c.p.farm} is not finished: ${c.p.why}. ${c.p.head}'s men were seen at the edge of your land, and they were not there for the view.`],
       options: (c) => {
         const cost = 70 + 25 * c.tier, F = IS.Feud;
-        const odds = Math.min(0.8, 0.4 + c.head.attrs.strength / 300 + c.head.attrs.honor / 400);
+        const odds = Math.min(0.8, 0.4 + c.fighter.attrs.strength / 300 + c.head.attrs.honor / 400);
         return [
           { id: 'pay', label: 'Offer a settlement', cost, desc: `${ells(cost)}. The bad blood cools. Honor −0.5.`,
             run: () => { c.pay(cost); c.goodwill(c.p.farm, 25); F.escalate(c.state, c.p.farm, -1); const f = F.get(c.state, c.p.farm); if (f && c.state.relations[c.p.farm] > F.HOSTILE) F.end(c.state, c.p.farm); c.honor(-0.5, `Peace bought with ${c.p.farm}`); return `${c.p.head} took the silver and the matter is closed, for now.`; } },

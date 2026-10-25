@@ -111,7 +111,7 @@
           run: () => {
             happy(w, 15); F.bump(c.state, c.p.farm, -15);
             if (c.rng.chance(odds)) { c.honor(3, `You avenged ${c.p.dead || 'your dead'} at ${c.p.whetter}'s urging`); F.slain(c.state, c.p.farm, 'them'); note(c, 'whetting', `${c.p.whetter} threw ${c.p.dead ? c.p.dead + "'s bloody cloak" : 'the shame of it'} over his shoulders, and he rode to ${c.p.farm} and killed a man there.`, 3); return `You rode that night. By morning a man of ${c.p.farm} was dead, and ${c.p.whetter} served you the best of everything in the house.`; }
-            c.honor(-1, `Your ride on ${c.p.farm} failed`); c.head.attrs.strength = Math.max(5, c.head.attrs.strength - 5);
+            c.honor(-1, `Your ride on ${c.p.farm} failed`); c.fighter.attrs.strength = Math.max(5, c.fighter.attrs.strength - 5);
             return `They were waiting. You came home hurt and with nothing to show for it.${F.bloodshed(c.state, c.rng, c, c.p.farm, c.p.head, 0.3)}`;
           } });
         opts.push({ id: 'promise', label: 'Promise her vengeance, in time', desc: 'She will hold you to it. She will not wait forever.', run: () => { happy(w, -5); const f = F.get(c.state, c.p.farm); if (f) f.whetted = c.state.turn - 3; return `You said it would be done when the time was right. ${c.p.whetter} said the time had been right for some while.`; } });
@@ -172,7 +172,7 @@
           run: () => {
             happy(w, 10); c.goodwill(c.p.kinFarm, 18); c.goodwill(c.p.foe, -22); if (F.shiftBond) F.shiftBond(c.state, c.p.kinFarm, c.p.foe, -8);
             if (c.rng.chance(odds)) { c.honor(1.5, `You rode with your wife's kin against ${c.p.foe}`); if (c.rng.chance(0.4)) c.feud(c.p.foe, `you rode with ${c.p.kinHead} against him`); return `You and ${c.p.kinHead} drove ${c.p.foeHead}'s men off the common and took the sheep back, and some of his. ${w ? w.first : 'Your wife'} met you at the door.`; }
-            c.honor(-1, `You rode with your wife's kin and were beaten`); c.head.attrs.strength = Math.max(5, c.head.attrs.strength - 4); c.feud(c.p.foe, `you rode against him for ${c.p.kinHead}`);
+            c.honor(-1, `You rode with your wife's kin and were beaten`); c.fighter.attrs.strength = Math.max(5, c.fighter.attrs.strength - 4); c.feud(c.p.foe, `you rode against him for ${c.p.kinHead}`);
             return `${c.p.foeHead} had more men than anyone said. You came home bruised, and with a new enemy.`;
           } });
         opts.push({ id: 'mediate', label: 'Offer to arbitrate between them', cost: 30, desc: `${ells(30)}. ${cap(F.oddsWord(arb))}. If both accept, both think better of you. Honor +1.`,

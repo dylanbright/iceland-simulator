@@ -24,13 +24,16 @@
   /** Your side: the head (unless away), the men of the house, hired guards and friends' men. */
   function ourSide(state, spec) {
     const out = [], head = state.people[state.headId];
-    if (!spec.noHead && head && head.deathYear == null && (spec.forceHead || !state.expedition)) out.push({ pid: head.id, name: head.first, str: head.attrs.strength, hp: 3, lead: true });
+    const grown = head && E().yearOf(state) - head.birthYear >= 16;
+    if (!spec.noHead && head && head.deathYear == null && (grown || spec.forceHead) && (spec.forceHead || !state.expedition)) out.push({ pid: head.id, name: head.first, str: head.attrs.strength, hp: 3, lead: true });
     if (!spec.alone) for (const p of (IS.Raid ? IS.Raid.raiders(state) : []).slice(0, 7)) out.push({ pid: p.id, name: p.first, str: p.attrs.strength || 45, hp: 2 });
     {
       const rng = spec.rng;
       for (let i = 0; i < (spec.hired || 0); i++) out.push({ pid: null, name: IS.Names.male(rng).first, tag: 'hired', str: 50, hp: 2 });
       for (let i = 0; i < (spec.friends || 0); i++) out.push({ pid: null, name: IS.Names.male(rng).first, tag: spec.friendFarm ? 'of ' + spec.friendFarm : 'friend', str: 48, hp: 2 });
     }
+    // a boy head stays out of it: the strongest man of the house leads in his place
+    if (!out.some((m) => m.lead)) { const best = out.filter((m) => m.pid).sort((a, b) => b.str - a.str)[0]; if (best) { best.lead = true; best.hp = 3; } }
     if (spec.companion) { const p = state.people[spec.companion]; if (p && p.deathYear == null) out.push({ pid: p.id, name: p.first, str: p.attrs.strength || 45, hp: 2 }); }
     return out;
   }

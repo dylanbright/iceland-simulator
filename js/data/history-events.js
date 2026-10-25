@@ -91,7 +91,7 @@
               c.state.faith = 'heathen'; faithShift(c, 'heathen', 6);
               if (c.rng.chance(0.4)) {
                 if (c.rng.chance(odds)) { c.honor(2, 'You drove Þangbrandr the priest off your land'); return 'He drew on you in the yard, and you put him on the ground. His companions carried him back to his horse.'; }
-                c.head.attrs.strength = Math.max(5, c.head.attrs.strength - 6); c.honor(-1.5, 'Þangbrandr the priest beat you in your own yard'); return 'He fought like a man who expects heaven to catch him. You will carry the scar.';
+                c.fighter.attrs.strength = Math.max(5, c.fighter.attrs.strength - 6); c.honor(-1.5, 'Þangbrandr the priest beat you in your own yard'); return 'He fought like a man who expects heaven to catch him. You will carry the scar.';
               }
               return 'He cursed you in Latin and rode on. Your neighbors to the old gods drank your health.';
             } },

@@ -11,7 +11,7 @@
   const cap = (s) => s[0].toUpperCase() + s.slice(1);
   const wound = (c) => {
     const n = c.rng.int(3, 9);
-    c.head.attrs.strength = Math.max(5, Math.round(c.head.attrs.strength - n));
+    c.fighter.attrs.strength = Math.max(5, Math.round(c.fighter.attrs.strength - n));
     return n;
   };
   const down = (c, n) => F().escalate(c.state, c.p.farm, -(n || 1));
@@ -73,12 +73,13 @@
       body: (c) => [`At the gathering ${c.p.head} of ${c.p.farm} made a verse about you, and the benches laughed. It was not a kind verse. Every man there is now waiting to see what you do.`],
       options: (c) => {
         const poetry = c.head.attrs.poetry, verse = Math.min(0.85, 0.25 + poetry / 150);
-        const duel = Math.min(0.8, 0.35 + (c.head.attrs.strength - 50) / 150);
+        const duel = Math.min(0.8, 0.35 + (c.fighter.attrs.strength - 50) / 150), champ = c.fighter;
         const L = F().lawChance(c.state, c.p.farm, 0.34);
+        const noChamp = c.minor && champ === c.head; // a boy with no grown man to stand for him cannot go to the island
         return [
           { id: 'verse', label: 'Answer him in verse', desc: `${cap(word(verse))}: your poetry decides. Honor +1.5 or −1.`,
             run: () => { sour(c, -3); if (c.rng.chance(verse)) { c.honor(1.5, `You answered ${c.p.farm} in verse`); return 'The verse was better than his, and was repeated at three farms by morning.'; } c.honor(-1, `Your answer to ${c.p.farm} fell flat`); return 'You found the first line and not the second. They laughed again.'; } },
-          { id: 'duel', label: 'Challenge him to the island', desc: `A duel. ${cap(word(duel))} by Strength. Honor +3 or −3, and a loss means a wound.`,
+          { id: 'duel', label: c.minor ? `Send ${champ.first} to the island in your place` : 'Challenge him to the island', desc: `A duel. ${cap(word(duel))} by ${c.minor ? champ.first + "'s" : ''} Strength. Honor +3 or −3, and a loss means a wound.`,
             run: () => {
               sour(c, -12);
               if (c.rng.chance(duel)) {
@@ -92,7 +93,7 @@
             run: () => { c.pay(25); sour(c, -6); if (c.rng.chance(L)) { c.earn(50 + 10 * c.tier); c.honor(1, `You won a slander case against ${c.p.farm}`); return `The court fined him, and the fine was read out where everyone could hear it.`; } c.honor(-1, 'A slander case you lost'); return `The judges said it was only a verse.`; } },
           { id: 'laugh', label: 'Laugh it off', desc: 'Honor −0.8. Peaceable, and maybe wise.',
             run: () => { c.honor(-0.8, `You ignored ${c.p.farm}'s verse`); sour(c, 2); return 'You laughed loudest of all. Some thought it was bravery.'; } },
-        ];
+        ].filter((o) => !(noChamp && o.id === 'duel'));
       } },
 
     { id: 'feud_livestock', w: 0, needs: () => null,

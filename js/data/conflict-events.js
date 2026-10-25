@@ -28,14 +28,14 @@
       title: () => 'Sheep are going missing',
       body: (c) => [`Every morning there are fewer sheep on the hill than the night before. You have counted ${c.p.n} gone so far, and no wolf has been the cause, since Iceland has none. Somebody is taking them, and he knows your fold.`],
       options: (c) => {
-        const str = c.head.attrs.strength, hunt = Math.min(0.75, 0.3 + str / 200);
+        const str = c.fighter.attrs.strength, hunt = Math.min(0.75, 0.3 + str / 200);
         return [
           { id: 'watch', label: 'Set a night watch', cost: 18, desc: `${ells(18)} for the food and the lost sleep. ${pct(0.55)}: the thief may be caught, and the loss stops. Honor +0.8 if he is.`,
             run: () => { c.pay(18); if (c.rng.chance(0.55)) { c.honor(0.8, 'You caught a sheep thief'); return `On the third night your watchman caught a hungry man from the next valley. You made him pay in labor and let him go.`; } c.state.farm.sheep = Math.max(0, c.state.farm.sheep - Math.ceil(c.p.n / 2)); return `The watch saw nothing, and ${Math.ceil(c.p.n / 2)} more sheep went the following week.`; } },
-          { id: 'hunt', label: 'Track them into the hills yourself', desc: `${pct(hunt)} by Strength. Honor +1.5 and the sheep back if you win; a wound and more losses if you do not.`,
+          { id: 'hunt', label: c.minor && c.fighter !== c.head ? `Send ${c.fighter.first} to track them into the hills` : 'Track them into the hills yourself', desc: `${pct(hunt)} by Strength. Honor +1.5 and the sheep back if you win; a wound and more losses if you do not.`,
             run: () => {
               if (c.rng.chance(hunt)) { c.honor(1.5, 'You ran down sheep thieves'); return `You found the camp in a gully. Three men, a fire, and your sheep. They did not fight, and you brought most of the flock home.`; }
-              const n = wound(c, c.head); c.honor(-1, 'Sheep thieves got away from you'); c.state.farm.sheep = Math.max(0, c.state.farm.sheep - c.p.n);
+              const n = wound(c, c.fighter); c.honor(-1, 'Sheep thieves got away from you'); c.state.farm.sheep = Math.max(0, c.state.farm.sheep - c.p.n);
               return `They knew the hills better than you, and one of them knew a knife. You came home ${n > 8 ? 'badly ' : ''}hurt and short ${c.p.n} sheep.`;
             } },
           { id: 'accept', label: 'Write it off', desc: `You lose about ${c.p.n} sheep. Honor −0.5.`,

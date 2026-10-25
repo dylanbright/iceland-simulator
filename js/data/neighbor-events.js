@@ -7,7 +7,7 @@
   const ells = (x) => Math.round(x).toLocaleString('en-US') + ' ells';
   const cap = (s) => s[0].toUpperCase() + s.slice(1);
   const word = (p) => F().oddsWord(p);
-  const wound = (c) => { const n = c.rng.int(3, 9); c.head.attrs.strength = Math.max(5, Math.round(c.head.attrs.strength - n)); return n; };
+  const wound = (c) => { const n = c.rng.int(3, 9); c.fighter.attrs.strength = Math.max(5, Math.round(c.fighter.attrs.strength - n)); return n; };
   const ally = (c, d) => c.goodwill(c.p.ally, d);
   const foe = (c, d) => c.goodwill(c.p.foe, d);
 

@@ -143,9 +143,16 @@
 
   /* ---------- what a house can muster, and what the courts will do ---------- */
   const men = (state) => (IS.Raid ? IS.Raid.raiders(state) : []);
+  /** Who fights for the house: the head if he is a grown man and at home, else its strongest grown man (or nobody). */
+  function champion(state) {
+    const head = state.people[state.headId], y = E().yearOf(state);
+    if (head && head.deathYear == null && !state.expedition && y - head.birthYear >= 16) return head;
+    const m = men(state).filter((p) => p.id !== state.headId).sort((a, b) => b.attrs.strength - a.attrs.strength);
+    return m[0] || null;
+  }
   function fightOdds(state, bonus) {
-    const head = state.people[state.headId], away = !!state.expedition;
-    let p = 0.34 + (away ? 0 : (head.attrs.strength - 50) / 220) + Math.min(0.2, men(state).length * 0.05) + (bonus || 0);
+    const away = !!state.expedition, champ = champion(state);
+    let p = 0.34 + (away ? 0 : ((champ ? champ.attrs.strength : 30) - 50) / 220) + Math.min(0.2, men(state).length * 0.05) + (bonus || 0);
     if (away) p -= 0.12;
     return clamp(p, 0.12, 0.85);
   }
@@ -514,5 +521,5 @@
     }
   }
 
-  IS.Feud = { HOSTILE, STAGES, word, get, rel, bump, ensure, escalate, end, whyOf, men, fightOdds, lawChance, wergild, oddsWord, tick, summary, seed, bloodshed, theyFall, slain, tollOf, edge, natureOf, directory, NATURES, bond, shiftBond, NQ_STAGE };
+  IS.Feud = { champion, HOSTILE, STAGES, word, get, rel, bump, ensure, escalate, end, whyOf, men, fightOdds, lawChance, wergild, oddsWord, tick, summary, seed, bloodshed, theyFall, slain, tollOf, edge, natureOf, directory, NATURES, bond, shiftBond, NQ_STAGE };
 })();

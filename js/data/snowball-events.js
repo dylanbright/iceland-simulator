@@ -12,7 +12,7 @@
   const ells = (x) => Math.round(x).toLocaleString('en-US') + ' ells';
   const cap = (s) => s[0].toUpperCase() + s.slice(1);
   const word = (p) => F().oddsWord(p);
-  const wound = (c) => { const n = c.rng.int(3, 9); c.head.attrs.strength = Math.max(5, Math.round(c.head.attrs.strength - n)); return n; };
+  const wound = (c) => { const n = c.rng.int(3, 9); c.fighter.attrs.strength = Math.max(5, Math.round(c.fighter.attrs.strength - n)); return n; };
   const fd = (c) => F().get(c.state, c.p.farm) || F().ensure(c.state, c.p.farm);
   const tally = (c) => { const t = F().tollOf(F().get(c.state, c.p.farm)); const n = t.you + t.them; return n ? `${n} ${n === 1 ? 'man is' : 'men are'} dead between the houses: ${t.you} of yours, ${t.them} of theirs.` : ''; };
   const up = (c, n) => F().escalate(c.state, c.p.farm, n || 1);
