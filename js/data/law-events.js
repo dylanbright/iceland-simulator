@@ -27,6 +27,7 @@
   /* ---------- the verdicts ---------- */
   function verdict(c, cs, won) {
     const f = F().get(c.state, cs.farm);
+    cs.beats = Object.assign(cs.beats || {}, { verdict: won ? 'won' : 'lost', sentence: '' });
     L().drop(c.state, cs.cid);
     if (cs.side === 'plaintiff') {
       if (won) {
@@ -48,13 +49,62 @@
     c.honor(-3, `You were found guilty at the Alþing`);
     if (cs.stakes === 'fine') {
       const owe = cs.value * 1.5;
-      if (IS.Economy.cashOf(c.state.farm) >= owe) { c.pay(owe); if (f) f.owedThem = 0; return `The court found against you and set the price at ${ells(owe)}. You paid it.`; }
+      if (IS.Economy.cashOf(c.state.farm) >= owe) { c.pay(owe); if (f) f.owedThem = 0; cs.beats.sentence = 'paid'; cs.beats.paid = owe; return `The court found against you and set the price at ${ells(owe)}. You paid it.`; }
     }
     const full = cs.charge !== 'killing' || cs.defied || c.head.attrs.honor < 25;
+    cs.beats.sentence = full ? 'full' : 'lesser';
     note(c, 'law', `At the Alþing he was declared ${full ? 'a full outlaw' : 'a lesser outlaw'} for ${L().chargeWord(cs)}.`, 4);
     insertNext(c, { id: 'exile_sentence', wifeId: null, kind: 'event', params: { kind: full ? 'full' : 'lesser', farm: cs.farm, head: cs.head, value: cs.value } });
     return full ? `The court declared you a full outlaw. Any man may kill you without paying for it, and no man may shelter you.` : `The court declared you a lesser outlaw: three years out of Iceland, and your life is forfeit if you are found here after the summer.`;
   }
+  /** The verdict screen: the hearing told as a little story, from the choices you made along the way. */
+  function tell(c, cs, twist) {
+    insertNext(c, { id: 'law_verdict', wifeId: null, kind: 'event', params: {
+      side: cs.side, farm: cs.farm, head: cs.head, charge: L().chargeWord(cs), witnesses: cs.witnesses, theirW: cs.theirWitnesses,
+      backerName: cs.backerName || '', lawyer: !!cs.lawyer, value: cs.value, beats: Object.assign({}, cs.beats || {}), twist, defied: !!cs.defied,
+    } });
+  }
+  function story(c) {
+    const P = c.p, b = P.beats || {}, you = P.side === 'plaintiff', foe = P.head, twist = P.twist;
+    const out = [];
+    // the ride to Þingvellir
+    const wit = { friends: P.witnesses > 1 ? `${['', '', 'two', 'three', 'four', 'five', 'six'][P.witnesses] || P.witnesses} neighbors sworn to stand for you` : P.witnesses === 1 ? 'one neighbor sworn to stand for you' : 'nobody sworn to stand for you', kin: 'only your own household to swear for you', false: 'two men from the next valley, paid to remember things they never saw' }[b.w] || 'what witnesses you could find';
+    const back = b.b === 'asked' ? (P.backerName ? `${P.backerName} rode beside you with his men, and his booth was the busiest at the Thing.` : `${b.bname} had sent half your gifts back, and every man at the Thing knew it.`)
+      : b.b === 'lawyer' ? 'An old man who had served the lawspeaker in his youth rode beside you, muttering the forms of the law.' : b.b === 'alone' ? 'You meant to plead it yourself.' : '';
+    const NUM = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven'];
+    const theirs = `${NUM[P.theirW] || P.theirW} ${P.theirW === 1 ? 'witness' : 'witnesses'}`;
+    if (twist === 'absent') out.push(`You did not ride to Þingvellir. ${foe} did, with ${theirs}, and the court heard his case against an empty space where you should have stood.`);
+    else out.push(`You rode to Þingvellir with ${wit}. ${back}${back ? ' ' : ''}${foe} of ${P.farm} came with ${theirs} of his own.`);
+    // the pleading
+    const how = {
+      careful: `At the Law Rock you pleaded slowly, naming every witness and every form, while ${foe}'s side listened for a slip.`,
+      bold: `At the Law Rock you pressed the case hard, ${you ? 'demanding' : 'denying'} everything in a voice that carried to the back of the crowd.`,
+      backer: `At the Law Rock ${P.backerName} spoke for you, and men who would not have listened to you listened to him.`,
+      flaw: `At the Law Rock you let ${foe}'s side say everything they had come to say, and listened for a mistake.`,
+      flawless: `At the Law Rock you went through ${foe}'s pleading word by word looking for a flaw, and found none, which the judges noticed.`,
+      settle: `Before the court could give its verdict, respected men began going between the booths.`,
+    }[b.p];
+    if (how) out.push(how);
+    // the turn
+    if (twist === 'false') out.push('Then one of your bought witnesses was asked a question he had not been paid to answer. He stammered, then told the court everything, including the price.');
+    if (twist === 'slip') out.push(you ? `Then, near the end, you named the jury from the wrong district. ${foe}'s law-man was on his feet before you had finished the sentence. The case was void, whatever the truth of it.` : `Then ${foe}'s side named the wrong court, and the case was void before anyone could say who was in the right.`);
+    if (twist === 'flaw') out.push(`And there it was: they had summoned you before the wrong quarter court. You rose and said so. The judges conferred, and agreed, and the case was void. ${foe} looked as if he had been struck.`);
+    if (twist === 'settled') out.push(`${foe} paid ${ells(b.sv)} to end it, in front of witnesses. No verdict was given, and no man was outlawed. Both sides called it fair, and neither meant it.`);
+    if (twist === 'refused') out.push(`${foe} would not settle, and by then you had withdrawn the case. You rode home with nothing settled at all.`);
+    if (twist === 'bought') out.push(`You paid ${ells(b.sv)} to make the case go away, before the court could speak. ${foe} took it and withdrew. No verdict, no outlawry, and a long ride home with an empty purse.`);
+    // the verdict
+    if (b.verdict && twist !== 'flaw') {
+      if (you) out.push(b.verdict === 'won' ? `The judges found for you. ${foe} was declared an outlaw at the Law Rock, before the whole country, and you were awarded ${ells(P.value)}. He has the summer to get out of Iceland.` : `The judges found for ${foe}. Your witnesses had not been enough, or the court did not like the look of them. You lost the case, and the cost of bringing it.`);
+      else if (b.verdict === 'won') out.push(`The judges found for you. ${foe}'s case was thrown out, and he can claim nothing more for ${P.charge}.`);
+      else if (b.sentence === 'paid') out.push(`The judges found against you and set the price at ${ells(b.paid)}. You paid it at the Law Rock, in front of everyone.`);
+      else if (b.sentence === 'lesser') out.push(`The judges found against you. You were declared a lesser outlaw: three years out of Iceland, and your life is forfeit if you are found here once the summer is over.`);
+      else if (b.sentence === 'full') out.push(`The judges found against you, and the sentence was the worst there is. You are a full outlaw. No man may feed you, shelter you, or carry you abroad, and any man may kill you without paying a penny for it.`);
+    }
+    if (b.brawl) out.push('As the verdict was read out, men on both sides put their hands to their weapons.');
+    else if (b.verdict && !b.sentence) out.push('The district will be talking about this Alþing all winter.');
+    return out;
+  }
+
   function maybeBrawl(c, cs, lost) {
     const fam = c.state.families && c.state.families[cs.farm];
     const p = 0.18 + (fam && (fam.goði || fam.tier >= 4) ? 0.1 : 0) + (lost === 'them' ? 0.05 : 0);
@@ -95,13 +145,13 @@
       options: (c) => {
         const cs = L().caseOf(c.state, c.p.cid);
         const friends = houses(c).filter((f) => rel(c, f.farm) >= 20 && f.farm !== cs.farm).length;
-        const next = () => insertNext(c, { id: 'law_backer', wifeId: null, kind: 'event', params: { cid: cs.cid, farm: cs.farm, head: cs.head } });
+        const next = (tag) => { cs.beats = Object.assign(cs.beats || {}, tag); insertNext(c, { id: 'law_backer', wifeId: null, kind: 'event', params: { cid: cs.cid, farm: cs.farm, head: cs.head } }); };
         return [
           { id: 'friends', label: 'Ride round the neighbors for witnesses', cost: 30, desc: `${ells(30)} in hospitality. ${friends ? `${Math.min(3, friends)} friendly ${friends === 1 ? 'house' : 'houses'} may stand with you.` : 'No house is friendly enough to be sure of.'}`,
-            run: () => { c.pay(30); const n = Math.min(3, friends) + (c.rng.chance(0.4) ? 1 : 0); cs.witnesses += Math.max(n, friends ? 1 : 0); next(); return cs.witnesses ? `${cs.witnesses} ${cs.witnesses === 1 ? 'man' : 'men'} agreed to ride with you and swear.` : 'Nobody would commit. You will go with what you have.'; } },
-          { id: 'kin', label: 'Take only your own household', desc: 'No cost. One witness, and the court knows he is yours.', run: () => { cs.witnesses += 1; next(); return 'Your household will swear for you. The court will weigh that for what it is.'; } },
+            run: () => { c.pay(30); const n = Math.min(3, friends) + (c.rng.chance(0.4) ? 1 : 0); cs.witnesses += Math.max(n, friends ? 1 : 0); next({ w: 'friends' }); return cs.witnesses ? `${cs.witnesses} ${cs.witnesses === 1 ? 'man' : 'men'} agreed to ride with you and swear.` : 'Nobody would commit. You will go with what you have.'; } },
+          { id: 'kin', label: 'Take only your own household', desc: 'No cost. One witness, and the court knows he is yours.', run: () => { cs.witnesses += 1; next({ w: 'kin' }); return 'Your household will swear for you. The court will weigh that for what it is.'; } },
           { id: 'false', label: 'Pay two men to swear to what they did not see', cost: 70, desc: `${ells(70)}. Two more witnesses. If the false oath is found out, the case is lost and so is your name.`,
-            run: () => { c.pay(70); cs.witnesses += 2; cs.falseW = true; next(); return 'Two men from the next valley will swear to whatever you tell them. You did not ask what else they had sworn to.'; } },
+            run: () => { c.pay(70); cs.witnesses += 2; cs.falseW = true; next({ w: 'false' }); return 'Two men from the next valley will swear to whatever you tell them. You did not ask what else they had sworn to.'; } },
         ];
       } },
 
@@ -111,16 +161,16 @@
       view: (c) => caseView(c, L().caseOf(c.state, c.p.cid)),
       options: (c) => {
         const cs = L().caseOf(c.state, c.p.cid);
-        const next = () => insertNext(c, { id: 'law_plead', wifeId: null, kind: 'event', params: { cid: cs.cid, farm: cs.farm, head: cs.head } });
+        const next = (tag) => { cs.beats = Object.assign(cs.beats || {}, tag); insertNext(c, { id: 'law_plead', wifeId: null, kind: 'event', params: { cid: cs.cid, farm: cs.farm, head: cs.head } }); };
         const big = houses(c).filter((f) => f.farm !== cs.farm && (f.goði || f.tier >= 4)).sort((a, b) => rel(c, b.farm) - rel(c, a.farm)).slice(0, 2);
         const opts = big.map((f) => {
           const cost = 60 + 20 * f.tier, p = Math.max(0.1, Math.min(0.9, 0.35 + rel(c, f.farm) / 120 + c.head.attrs.honor / 250 - (F().bond ? Math.max(0, F().bond(c.state, f.farm, cs.farm)) / 150 : 0)));
           return { id: 'b_' + f.farm, label: `Ask ${f.head.first} of ${f.farm} for his backing`, cost, desc: `${ells(cost)} in gifts. ${cap(F().oddsWord(p))}. ${f.goði ? 'He is a goði.' : 'A great householder.'}`,
-            run: () => { c.pay(cost); next(); if (c.rng.chance(p)) { cs.backer = 0.08 + 0.03 * f.tier + (f.goði ? 0.05 : 0); cs.backerName = `${f.head.first} of ${f.farm}`; cs.backerFarm = f.farm; c.goodwill(f.farm, 5); return `${f.head.first} took the gifts and his hand on it: he will stand with you at the Law Rock.`; } c.state.farm.vadmal += Math.round(cost / 2); return `${f.head.first} sent back half your gifts and said he had other obligations this summer.`; } };
+            run: () => { c.pay(cost); next({ b: 'asked', bname: `${f.head.first} of ${f.farm}` }); if (c.rng.chance(p)) { cs.backer = 0.08 + 0.03 * f.tier + (f.goði ? 0.05 : 0); cs.backerName = `${f.head.first} of ${f.farm}`; cs.backerFarm = f.farm; c.goodwill(f.farm, 5); return `${f.head.first} took the gifts and his hand on it: he will stand with you at the Law Rock.`; } c.state.farm.vadmal += Math.round(cost / 2); return `${f.head.first} sent back half your gifts and said he had other obligations this summer.`; } };
         });
         opts.push({ id: 'lawyer', label: 'Hire a man learned in the law', cost: 50, desc: `${ells(50)}. He knows every form of the law. It helps, and it guards against mistakes.`,
-          run: () => { c.pay(50); cs.lawyer = true; next(); return 'You found an old man who had been lawspeaker\'s assistant in his youth. He knows the forms the way a priest knows his prayers.'; } });
-        opts.push({ id: 'alone', label: 'Go to the Law Rock on your own', desc: 'Trust your own knowledge of the law.', run: () => { next(); return 'You will plead it yourself.'; } });
+          run: () => { c.pay(50); cs.lawyer = true; next({ b: 'lawyer' }); return 'You found an old man who had been lawspeaker\'s assistant in his youth. He knows the forms the way a priest knows his prayers.'; } });
+        opts.push({ id: 'alone', label: 'Go to the Law Rock on your own', desc: 'Trust your own knowledge of the law.', run: () => { next({ b: 'alone' }); return 'You will plead it yourself.'; } });
         return opts;
       } },
 
@@ -131,31 +181,34 @@
       options: (c) => {
         const cs = L().caseOf(c.state, c.p.cid), law = c.head.attrs.law;
         const base = L().odds(c.state, cs);
-        const plead = (bonus, slip, how) => () => {
-          if (cs.falseW && c.rng.chance(0.25)) { L().drop(c.state, cs.cid); c.honor(-4, 'Your false witnesses were exposed at the Alþing'); if (cs.side === 'defendant') return `One of your bought witnesses broke under questioning. The court threw out your defense.${verdict(c, Object.assign({}, cs, { cid: 'gone' }), false)}`; return 'One of your bought witnesses broke under questioning and told the court what he had been paid. The case collapsed, and every man at the Alþing heard why.'; }
+        const plead = (bonus, slip, how, id) => () => {
+          cs.beats = Object.assign(cs.beats || {}, { p: id });
+          if (cs.falseW && c.rng.chance(0.25)) { L().drop(c.state, cs.cid); c.honor(-4, 'Your false witnesses were exposed at the Alþing'); if (cs.side === 'defendant') { const t = verdict(c, Object.assign({}, cs, { cid: 'gone' }), false); tell(c, cs, 'false'); return `One of your bought witnesses broke under questioning. The court threw out your defense. ${t}`; } tell(c, cs, 'false'); return 'One of your bought witnesses broke under questioning and told the court what he had been paid. The case collapsed, and every man at the Alþing heard why.'; }
           if (c.rng.chance(slip)) {
-            L().drop(c.state, cs.cid); c.honor(-1, 'Your case fell on a point of procedure');
+            L().drop(c.state, cs.cid); c.honor(-1, 'Your case fell on a point of procedure'); tell(c, cs, 'slip');
             if (cs.side === 'defendant') { const f = F().get(c.state, cs.farm); if (f) f.owedThem = Math.round(f.owedThem * 0.5); return `${how} Then ${cs.head}'s side named the wrong court, and your law-man saw it. The case was void. ${cs.head} will have to start again, if he can.`; }
             return `${how} Then you named the jury from the wrong district, and ${cs.head}'s law-man was on his feet before you finished. The case was void.`;
           }
           const won = c.rng.chance(Math.min(0.92, base + bonus));
           const t = verdict(c, cs, won);
-          return `${how} ${t}${maybeBrawl(c, cs, won ? 'them' : 'you')}`;
+          const br = maybeBrawl(c, cs, won ? 'them' : 'you');
+          cs.beats.brawl = !!br; tell(c, cs, 'none');
+          return `${how} ${t}${br}`;
         };
         const slip = Math.max(0.03, 0.12 - law / 900 - (cs.lawyer ? 0.06 : 0));
         const opts = [
-          { id: 'careful', label: 'Follow every form of the law', desc: `${cap(L().oddsWord(base))}. Few mistakes.`, run: plead(0, slip, 'You pleaded slowly, naming every witness and every form.') },
-          { id: 'bold', label: 'Press the case hard', desc: `${cap(L().oddsWord(base + 0.08))}, but a hurried pleading invites mistakes.`, run: plead(0.08, slip + 0.12, 'You pressed the case hard and the court felt it.') },
+          { id: 'careful', label: 'Follow every form of the law', desc: `${cap(L().oddsWord(base))}. Few mistakes.`, run: plead(0, slip, 'You pleaded slowly, naming every witness and every form.', 'careful') },
+          { id: 'bold', label: 'Press the case hard', desc: `${cap(L().oddsWord(base + 0.08))}, but a hurried pleading invites mistakes.`, run: plead(0.08, slip + 0.12, 'You pressed the case hard and the court felt it.', 'bold') },
         ];
-        if (cs.backerName) opts.push({ id: 'backer', label: `Let ${cs.backerName.split(' of ')[0]} speak for you`, desc: `${cap(L().oddsWord(base + cs.backer * 0.5))}. A chieftain's voice carries.`, run: plead(cs.backer * 0.5, slip, `${cs.backerName} spoke for you, and men listened.`) });
+        if (cs.backerName) opts.push({ id: 'backer', label: `Let ${cs.backerName.split(' of ')[0]} speak for you`, desc: `${cap(L().oddsWord(base + cs.backer * 0.5))}. A chieftain's voice carries.`, run: plead(cs.backer * 0.5, slip, `${cs.backerName} spoke for you, and men listened.`, 'backer') });
         if (cs.side === 'defendant') opts.push({ id: 'flaw', label: 'Look for a flaw in their pleading', desc: `Your Law (${Math.round(law)}) decides. If you find one, the case is void. If not, it goes worse for you.`,
-          run: () => { if (c.rng.chance(Math.min(0.75, law / 140))) { L().drop(c.state, cs.cid); c.honor(1.5, `You broke ${cs.head}'s case on a point of law`); const f = F().get(c.state, cs.farm); if (f) f.owedThem = Math.round(f.owedThem * 0.5); return `You waited until ${cs.head}'s side had finished, then pointed out that they had summoned you before the wrong quarter court. The judges conferred and agreed. The case was void.`; } return plead(-0.06, 0, 'You searched their pleading for a flaw and found none.')(); } });
+          run: () => { if (c.rng.chance(Math.min(0.75, law / 140))) { L().drop(c.state, cs.cid); c.honor(1.5, `You broke ${cs.head}'s case on a point of law`); const f = F().get(c.state, cs.farm); if (f) f.owedThem = Math.round(f.owedThem * 0.5); cs.beats = Object.assign(cs.beats || {}, { p: 'flaw' }); tell(c, cs, 'flaw'); return `You waited until ${cs.head}'s side had finished, then pointed out that they had summoned you before the wrong quarter court. The judges conferred and agreed. The case was void.`; } return plead(-0.06, 0, 'You searched their pleading for a flaw and found none.', 'flawless')(); } });
         const sv = Math.round(cs.value * (cs.side === 'plaintiff' ? 0.8 : 1.2));
         opts.push(cs.side === 'plaintiff'
           ? { id: 'settle', label: 'Accept a settlement before the verdict', desc: `About ${ells(sv)}, if ${cs.head} agrees. No outlawry, and the feud cools.`,
-            run: () => { L().drop(c.state, cs.cid); if (c.rng.chance(0.65)) { c.earn(sv); F().escalate(c.state, cs.farm, -2); c.goodwill(cs.farm, 10); c.honor(0.5, `A settlement with ${cs.head} at the Alþing`); return `Respected men went between the booths, and before the court gave its verdict ${cs.head} paid ${ells(sv)} to end it.`; } c.honor(-0.5, `${cs.head} refused to settle`); return `${cs.head} would not settle, and by then you had withdrawn the case.`; } }
+            run: () => { L().drop(c.state, cs.cid); if (c.rng.chance(0.65)) { c.earn(sv); F().escalate(c.state, cs.farm, -2); c.goodwill(cs.farm, 10); c.honor(0.5, `A settlement with ${cs.head} at the Alþing`); cs.beats = Object.assign(cs.beats || {}, { p: 'settle', sv }); tell(c, cs, 'settled'); return `Respected men went between the booths, and before the court gave its verdict ${cs.head} paid ${ells(sv)} to end it.`; } c.honor(-0.5, `${cs.head} refused to settle`); cs.beats = Object.assign(cs.beats || {}, { p: 'settle' }); tell(c, cs, 'refused'); return `${cs.head} would not settle, and by then you had withdrawn the case.`; } }
           : { id: 'settle', label: 'Offer to settle before the verdict', cost: sv, desc: `${ells(sv)}. No verdict, no outlawry. Honor −1.`,
-            run: () => { c.pay(sv); L().drop(c.state, cs.cid); const f = F().get(c.state, cs.farm); if (f) { f.owedThem = 0; f.answer = 0; } F().escalate(c.state, cs.farm, -2); c.honor(-1, `You bought off ${cs.head}'s case`); return `You paid ${ells(sv)} before the court could speak, and ${cs.head} withdrew the case.`; } });
+            run: () => { c.pay(sv); L().drop(c.state, cs.cid); const f = F().get(c.state, cs.farm); if (f) { f.owedThem = 0; f.answer = 0; } F().escalate(c.state, cs.farm, -2); c.honor(-1, `You bought off ${cs.head}'s case`); cs.beats = Object.assign(cs.beats || {}, { p: 'settle', sv }); tell(c, cs, 'bought'); return `You paid ${ells(sv)} before the court could speak, and ${cs.head} withdrew the case.`; } });
         return opts;
       } },
 
@@ -164,7 +217,7 @@
       body: (c) => { const cs = L().caseOf(c.state, c.p.cid); return [`You did not go to the Alþing to answer ${cs.head}'s case, and the court heard it without you.`]; },
       view: (c) => caseView(c, L().caseOf(c.state, c.p.cid)),
       options: (c) => [{ id: 'hear', label: 'Hear the verdict', desc: 'It was given in your absence.',
-        run: () => { const cs = L().caseOf(c.state, c.p.cid); const won = c.rng.chance(L().odds(c.state, cs)); return won ? `${cs.head} made a mistake in the pleading, and with no one to answer him the judges still threw it out. ${verdict(c, cs, true)}` : verdict(c, cs, false); } }] },
+        run: () => { const cs = L().caseOf(c.state, c.p.cid); const won = c.rng.chance(L().odds(c.state, cs)); const t = verdict(c, cs, won); tell(c, cs, 'absent'); return won ? `${cs.head} made a mistake in the pleading, and with no one to answer him the judges still threw it out. ${t}` : t; } }] },
 
     { id: 'law_brawl', w: 0, needs: () => null,
       title: () => 'Weapons drawn at the Alþing',
@@ -178,6 +231,32 @@
             run: () => { if (c.rng.chance(0.6)) { c.honor(0.5, 'You kept the peace at the Alþing'); return 'You lowered your weapon and called out to the peacemakers, and they pushed between the two sides before anyone struck.'; } insertNext(c, B().start(c.state, c.rng, spec)); return 'You called for peace, but the first blow had already been struck.'; } },
           { id: 'withdraw', label: 'Pull your men back to your booth', desc: 'Honor −1. Nobody dies.', run: () => { c.honor(-1, 'You withdrew from a fight at the Alþing'); return 'You pulled your men back to your booth. Some called it wisdom. More called it something else.'; } },
         ];
+      } },
+
+    { id: 'law_verdict', w: 0, needs: () => null,
+      title: (c) => {
+        const P = c.p, b = P.beats || {};
+        if (P.twist === 'flaw' || P.twist === 'slip') return 'The case falls on a point of law';
+        if (P.twist === 'settled' || P.twist === 'bought') return 'Settled before the verdict';
+        if (P.twist === 'refused') return 'Nothing settled';
+        if (P.twist === 'false' && P.side === 'plaintiff') return 'Your false witnesses are exposed';
+        if (P.side === 'plaintiff') return b.verdict === 'won' ? `${P.head} is outlawed` : `The court finds for ${P.head}`;
+        return b.verdict === 'won' ? 'Cleared at the Alþing' : b.sentence === 'full' ? 'You are a full outlaw' : b.sentence === 'lesser' ? 'Three years out of Iceland' : 'The court finds against you';
+      },
+      body: (c) => story(c),
+      view: (c) => {
+        const P = c.p, b = P.beats || {};
+        const rows = [
+          ['The case', `${P.side === 'plaintiff' ? `You against ${P.head} of ${P.farm}` : `${P.head} of ${P.farm} against you`}, for ${P.charge}`],
+          ['Witnesses', `${P.witnesses} for you${b.w === 'false' ? ' (two of them bought)' : ''}, ${P.theirW} for ${P.head}`],
+          ['Backing', P.backerName || (P.lawyer ? 'a man learned in the law' : b.bname ? `${b.bname} refused you` : 'none')],
+          ['Outcome', { flaw: 'void, on a flaw in their pleading', slip: 'void, on a slip in the pleading', settled: 'settled before the verdict', bought: 'bought off before the verdict', refused: 'withdrawn', false: P.side === 'plaintiff' ? 'collapsed: false witnesses' : 'lost: false witnesses' }[P.twist] || (b.verdict === 'won' ? (P.side === 'plaintiff' ? `${P.head} outlawed` : 'cleared') : b.sentence === 'paid' ? 'found against you; you paid' : b.sentence ? `you are a ${b.sentence} outlaw` : 'lost')],
+        ];
+        return { card: { title: 'The Alþing', rows } };
+      },
+      options: (c) => {
+        const b = c.p.beats || {};
+        return [{ id: 'ok', label: b.sentence === 'lesser' || b.sentence === 'full' ? 'Face what it means' : b.brawl ? 'Put your hand to your sword' : 'Ride home from the Alþing', desc: b.sentence === 'lesser' || b.sentence === 'full' ? 'Your sentence must be served.' : '', run: () => '' }];
       } },
 
     /* ---------- outlawry ---------- */

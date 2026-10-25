@@ -110,3 +110,5 @@ More of the story now runs through the women of the house:
 
 **Raid vengeance is fought out.** When you find the man you swore to kill, it is no longer a single roll: call him out to single combat on the cloaks (up to six exchanges, each choosing to keep your shield up, strike hard or feint for the killing blow, or yield; a win is Honor +6), or come back at night with your crew and fall on his hall (a battle; Honor +3 if he dies), or let him be.
 
+**The verdict screen.** Every Alþing case now ends on a screen of its own that tells the hearing as a short story built from your choices: who rode with you (friends, your household, or bought men), whether a chieftain stood beside you or sent your gifts back, how you pleaded, any turn (a bought witness breaking, a slip in the forms, a flaw found in theirs, a settlement), the verdict and what it means. A card sums it up.
+
