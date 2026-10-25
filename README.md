@@ -108,3 +108,5 @@ More of the story now runs through the women of the house:
 - **The widow's suitor** (`house_widow`): after a succession, a neighbor may ask for your father's widow, who would take her young children and their share with her. Bless the match and pay her portion, keep the children, or refuse.
 - The starting wife's family is now a house of the district, so it can take part in all of this.
 
+**Raid vengeance is fought out.** When you find the man you swore to kill, it is no longer a single roll: call him out to single combat on the cloaks (up to six exchanges, each choosing to keep your shield up, strike hard or feint for the killing blow, or yield; a win is Honor +6), or come back at night with your crew and fall on his hall (a battle; Honor +3 if he dies), or let him be.
+

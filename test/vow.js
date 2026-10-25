@@ -18,6 +18,8 @@ for (let i = 0; i < 400; i++) {
     while (s.mode === 'incident' && guard++ < 20) {
       const d = IS.Household.describe(s);
       if (d && d.id === 'raid_vow') { offered++; if (/undefined|NaN|\[object/.test(JSON.stringify(d))) { bad++; console.log('BAD TEXT', JSON.stringify(d).slice(0, 300)); } const r = IS.Household.choose(s, 'raid_vow' === d.id ? (i % 3 === 0 ? 'letlie' : 'swear') : 'x'); if (i % 3 !== 0) sworn++; if (!r) bad++; }
+      else if (d && d.id === 'vow_duel') { IS.Household.choose(s, i % 2 ? 'holmgang' : 'hall'); }
+      else if (d && d.id === 'battle') { const before = (s.report.incidents || []).length; IS.Household.choose(s, guard % 2 ? 'wall' : 'press'); const r = (s.report.incidents || [])[before]; if (r && /is avenged/.test(r.text)) avenged++; if (r && /undefined|NaN/.test(r.text)) { bad++; console.log('BAD', r.text); } }
       else IS.Household.autoChoose(s, 0.5);
     }
     IS.Turn.proceed(s);

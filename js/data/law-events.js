@@ -234,15 +234,35 @@
         return opts;
       } },
 
+    /* ---------- the reckoning of a raid vow ---------- */
+    { id: 'vow_duel', w: 0, needs: () => null,
+      title: (c) => `${c.p.killer}, who killed ${c.p.fallen}`,
+      body: (c) => [`You have found ${c.p.killer} in ${c.p.where}, in a hall full of his friends. He knows who you are and why you have come. The hall has gone quiet, and every man in it is watching you.`,
+        `You swore to avenge ${c.p.fallen}. This is the day, one way or another.`],
+      options: (c) => {
+        const crew = 5;
+        const duel = { kind: 'duel', farm: '', head: c.p.killer, force: 1, power: 1.2, alone: true, forceHead: true, extra: { maxRounds: 6, fallen: c.p.fallen, where: c.p.where } };
+        const hall = { kind: 'hall', farm: '', head: c.p.killer, force: 7, power: 1, alone: true, forceHead: true, friends: crew, friendFarm: 'the ship', extra: { fallen: c.p.fallen, where: c.p.where } };
+        return [
+          { id: 'holmgang', label: `Call ${c.p.killer} out to single combat`, desc: `Man against man on the cloaks, before witnesses. Your Strength is ${Math.round(c.head.attrs.strength)}. A win brings Honor +6, the greatest vengeance there is.`,
+            run: () => { insertNext(c, B().start(c.state, c.rng, duel)); return `You stood up in his hall and called him a murderer in front of his friends. He could not refuse, and did not try.`; } },
+          { id: 'hall', label: 'Come back at night with your crew and fall on his hall', desc: `${cap(B().oddsWord(c.state, hall))}. Honor +3 if he dies. Your crew fights with you, and some of them will not sail home.`,
+            run: () => { insertNext(c, B().start(c.state, c.rng, hall)); return 'You left without a word and went back to the ship to wait for dark.'; } },
+          { id: 'leave', label: 'Let him be, for now', desc: 'Honor −1. The oath still stands, and the men saw you leave.', run: () => { c.honor(-1, `You found ${c.p.killer} and let him be`); return 'You finished your ale and walked out. Nobody laughed until you were outside.'; } },
+        ];
+      } },
+
     /* ---------- the battle screen ---------- */
     { id: 'battle', w: 0, needs: () => null,
-      title: (c) => ({ burning: 'The fight at the door', thing: 'The fight at the Alþing', hunters: 'They have found you' }[c.p.kind] || 'A fight') + ` (round ${c.p.round})`,
+      title: (c) => ({ burning: 'The fight at the door', thing: 'The fight at the Alþing', hunters: 'They have found you', duel: `Single combat with ${c.p.head}`, hall: `The night attack on ${c.p.head}'s hall` }[c.p.kind] || 'A fight') + (c.p.kind === 'duel' ? '' : ` (round ${c.p.round})`),
       body: (c) => [{
         burning: `${c.p.head}'s men are at the door with torches, and the yard is full of them.`,
         thing: `Your men and ${c.p.head}'s are at each other on the lava field, with the whole Alþing watching.`,
         hunters: `${c.p.head} and his men have come to kill you for the price on your head.`,
-      }[c.p.kind], c.p.round === 1 ? 'Choose how your side fights this round.' : 'The fight goes on.'],
-      view: (c) => ({ battle: { round: c.p.round, max: B().MAX_ROUNDS, us: c.p.us, them: c.p.them, log: c.p.log, foe: c.p.head } }),
+        duel: c.p.round === 1 ? `A square of cloaks is pegged out on the ground, as the law of single combat asks. ${c.p.head} steps onto it, the man who killed ${c.p.fallen}. His friends stand on one side, your crew on the other. Each of you has three shields. Nobody else may interfere.` : `You circle each other on the cloaks. ${c.p.head} is breathing hard, and so are you.`,
+        hall: c.p.round === 1 ? `You and your crew came up from the ship in the dark. The door of ${c.p.head}'s hall is barred, and his men are waking inside.` : 'The fight in the hall goes on in the smoke and the dark.',
+      }[c.p.kind], c.p.kind === 'duel' ? (c.p.round === 1 ? 'Choose how you fight this exchange.' : 'The fight goes on.') : c.p.round === 1 ? 'Choose how your side fights this round.' : 'The fight goes on.'],
+      view: (c) => ({ battle: { round: c.p.round, max: c.p.maxRounds || B().MAX_ROUNDS, us: c.p.us, them: c.p.them, log: c.p.log, foe: c.p.head, duel: c.p.kind === 'duel' } }),
       options: (c) => {
         const P = c.p, theirLead = B().leader(P.them);
         const go = (stance) => () => {
@@ -252,7 +272,7 @@
             if (!m.pid || m.buried || m.hp > 0) continue;
             const p = c.state.people[m.pid];
             if (!p || p.deathYear != null) { m.buried = true; continue; }
-            if (m.dead) { m.buried = true; c.kill(p, { burning: `fell defending the house against ${P.farm}`, thing: `was killed in the fight at the Alþing`, hunters: `was killed by the men who came to hunt the outlaw` }[P.kind] || 'was killed in a fight', 'killed in a feud'); if (P.farm && c.state.families && c.state.families[P.farm] && p.id !== c.state.headId) F().slain(c.state, P.farm, 'you'); }
+            if (m.dead) { m.buried = true; c.kill(p, { burning: `fell defending the house against ${P.farm}`, thing: `was killed in the fight at the Alþing`, hunters: `was killed by the men who came to hunt the outlaw`, duel: `was killed by ${P.head} in single combat in ${P.where}`, hall: `fell attacking ${P.head}'s hall in ${P.where}` }[P.kind] || 'was killed in a fight', P.kind === 'duel' || P.kind === 'hall' ? 'killed abroad' : 'killed in a feud'); if (P.farm && c.state.families && c.state.families[P.farm] && p.id !== c.state.headId) F().slain(c.state, P.farm, 'you'); }
             else { m.buried = true; if (p.attrs) p.attrs.strength = Math.max(5, p.attrs.strength - 5); }
           }
           const text = r.lines.join(' ');
@@ -260,7 +280,17 @@
           insertNext(c, { id: 'battle', wifeId: null, kind: 'event', params: P });
           return text;
         };
-        const fall = { burning: 'Get everyone out through the back', thing: 'Pull back to your booth', hunters: 'Run for the high ground' }[P.kind] || 'Break off';
+        const fall = { burning: 'Get everyone out through the back', thing: 'Pull back to your booth', hunters: 'Run for the high ground', duel: 'Yield and step off the cloaks', hall: 'Fall back to the ship' }[P.kind] || 'Break off';
+        if (P.kind === 'duel') {
+          const me = P.us[0], him = P.them[0];
+          const hurt = (m) => (m.hp >= m.max ? 'unhurt' : m.hp === 2 ? 'cut' : m.hp === 1 ? 'badly wounded' : 'down');
+          return [
+            { id: 'wall', label: 'Keep your shield up and wait for his mistake', desc: `Safe. You are ${hurt(me)}; he is ${hurt(him)}.`, run: go('wall') },
+            { id: 'press', label: 'Strike hard', desc: 'You will land more blows, and take more.', run: go('press') },
+            { id: 'feint', label: 'Feint, then go for the killing blow', desc: 'It ends quickly, one way or the other.', run: go('feint') },
+            { id: 'fall', label: fall, desc: 'You live. The oath stands, and everyone saw you yield. Honor −2.', run: () => outcome(c, 'fled') },
+          ];
+        }
         const opts = [
           { id: 'wall', label: B().STANCE.wall.word, desc: 'Hold together and let them come. You give little and take little.', run: go('wall') },
           { id: 'press', label: B().STANCE.press.word, desc: 'Hit hard. You hurt them more, and leave yourselves open.', run: go('press') },
@@ -268,10 +298,30 @@
         if (theirLead && theirLead.hp > 0) opts.push({ id: 'leader', label: `Go for ${theirLead.name}`, desc: 'If he falls, his men may break. You will be exposed while you try.', run: go('leader') });
         if (P.kind === 'thing') opts.push({ id: 'peace', label: 'Call on the peacemakers', desc: 'They may get between the lines now that blood is up, or they may not.',
           run: () => (c.rng.chance(0.5) ? outcome(c, 'draw') : go('wall')()) });
-        opts.push({ id: 'fall', label: fall, desc: { burning: 'Your people live. The house does not.', thing: 'Honor −1.5. Nobody else dies today.', hunters: 'You may get away. You will lose ground and blood.' }[P.kind], run: () => outcome(c, 'fled') });
+        opts.push({ id: 'fall', label: fall, desc: { burning: 'Your people live. The house does not.', thing: 'Honor −1.5. Nobody else dies today.', hunters: 'You may get away. You will lose ground and blood.', hall: 'He lives, and the oath stands.' }[P.kind], run: () => outcome(c, 'fled') });
         return opts;
       } },
   ];
+
+  /** A vow fulfilled (or not). */
+  const vowDone = (c) => { c.state.vow = null; c.state.hooks = (c.state.hooks || []).filter((h) => h.type !== 'raid_vow'); };
+  B().OUTCOME.duel = (c, end) => {
+    const P = c.p;
+    if (end === 'won') { vowDone(c); c.honor(6, `You avenged ${P.fallen}, killing ${P.head} in single combat`); note(c, 'vow', `In ${P.where} he called out ${P.head}, who had killed ${P.fallen}, and killed him in single combat on the cloaks.`, 5); return `${P.head} went down on the cloaks and did not get up. His friends let you walk back to the ship. ${P.fallen} is avenged.`; }
+    if (c.head.deathYear != null) return `You fell on the cloaks. ${P.fallen} is still unavenged, and now so are you.`;
+    if (end === 'draw') { c.honor(1, `You fought ${P.head} to a standstill`); return `You fought until neither of you could lift a shield, and the witnesses stopped it. ${P.head} lives. The oath still stands, but nobody will call you a coward.`; }
+    if (end === 'fled') { c.head.attrs.strength = Math.max(5, c.head.attrs.strength - 3); c.honor(-2, `You yielded to ${P.head}`); return `You stepped off the cloaks and paid the three marks of silver the law asks of a man who yields. The oath still stands.`; }
+    const w = c.rng.int(5, 12); c.head.peak.strength = Math.max(8, c.head.peak.strength - w); c.head.attrs.strength = Math.max(8, c.head.attrs.strength - w); c.honor(-1, `${P.head} bested you in single combat`);
+    return `${P.head} cut you down, and his friends dragged him away before he could finish it. You will carry that wound for the rest of your life (strength −${w}). The oath still stands.`;
+  };
+  B().OUTCOME.hall = (c, end, n) => {
+    const P = c.p, him = P.them[0];
+    if (end === 'won' && him.hp <= 0) { vowDone(c); c.honor(3, `You avenged ${P.fallen}, killing ${P.head} in his own hall`); note(c, 'vow', `In ${P.where} he fell on the hall of ${P.head}, who had killed ${P.fallen}, and killed him there.`, 3); return `${P.head} died in his own hall with ${n > 1 ? n - 1 + ' of his men' : 'his men'} around him. ${P.fallen} is avenged, though some will say it was done in the dark.`; }
+    if (end === 'won') { c.honor(1, `You broke ${P.head}'s hall`); return `His men broke, but ${P.head} got out through the back in the dark. The oath still stands.`; }
+    if (end === 'fled') return 'You pulled your crew back to the ship before dawn. He lives, and the oath stands.';
+    if (end === 'draw') return 'At first light both sides drew apart, too tired to finish it. The oath stands.';
+    c.honor(-1, `Your attack on ${P.head}'s hall failed`); return 'His men were readier than yours. You got the survivors back to the ship. The oath still stands.';
+  };
 
   /** Apply a battle's result by kind. */
   function outcome(c, end) {

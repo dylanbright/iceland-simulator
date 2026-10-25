@@ -565,6 +565,16 @@
       h('ul', null, side.map((m) => h('li', { class: 'bt-man bt-' + mark(m) }, h('span', { class: 'bt-dot', 'aria-hidden': 'true' }),
         h('span', { class: 'bt-name' }, m.name + (m.lead ? ' ★' : '')), m.tag ? h('span', { class: 'bt-tag' }, ' ' + m.tag) : null, h('span', { class: 'bt-state' }, WORD[mark(m)])))));
     const pips = Array.from({ length: b.max }, (_, i) => h('span', { class: 'bt-pip' + (i < b.round - 1 ? ' done' : i === b.round - 1 ? ' now' : '') }));
+    if (b.duel) {
+      const fighter = (m, side) => h('div', { class: 'du-man du-' + mark(m) },
+        h('p', { class: 'du-side' }, side), h('p', { class: 'du-name' }, m.name), h('p', { class: 'du-str' }, `Strength ${Math.round(m.str)}`),
+        h('div', { class: 'du-hp', role: 'img', 'aria-label': `${m.hp} of ${m.max} before he falls` }, Array.from({ length: m.max || 3 }, (_, i) => h('span', { class: i < m.hp ? 'on' : '' }))),
+        h('p', { class: 'du-state' }, WORD[mark(m)]));
+      return h('section', { class: 'battle duel', 'aria-label': 'Single combat' },
+        h('div', { class: 'bt-rounds' }, h('span', null, `Exchange ${Math.min(b.round, b.max)} of ${b.max}`), h('span', { class: 'bt-pips' }, pips)),
+        h('div', { class: 'du-cols' }, fighter(b.us[0], 'You'), h('span', { class: 'du-vs', 'aria-hidden': 'true' }, 'against'), fighter(b.them[0], 'The killer')),
+        b.log.length ? h('ol', { class: 'bt-log' }, b.log.slice(0, 3).map((l) => h('li', null, l))) : null);
+    }
     return h('section', { class: 'battle', 'aria-label': 'The fight' },
       h('div', { class: 'bt-rounds' }, h('span', null, `Round ${Math.min(b.round, b.max)} of ${b.max}`), h('span', { class: 'bt-pips' }, pips)),
       h('div', { class: 'bt-cols' }, col('Your side', b.us), col(`${b.foe}'s side`, b.them)),

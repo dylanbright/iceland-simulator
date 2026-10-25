@@ -456,3 +456,16 @@ button, input { font: inherit; color: inherit; }
 .fold[open] > summary { padding-left: 0.9rem; padding-right: 0.75rem; }
 .fold[open] > .fold-body { padding: 0.4rem 0.9rem 1.1rem; }
 .fold[open] .row, .fold[open] .hg-row { border-bottom-color: rgba(127, 135, 130, 0.25); }
+
+/* single combat: two fighters and the blows each can still take */
+.du-cols { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 1rem; text-align: center; }
+.du-man p { margin: 0; }
+.du-side { font-family: var(--sans); font-size: 0.78rem; color: var(--stone); }
+.du-name { font-size: 1.6rem; font-weight: 600; line-height: 1.2; }
+.du-str { font-family: var(--sans); font-size: 0.82rem; color: var(--stone); margin-bottom: 0.5rem !important; }
+.du-hp { display: inline-flex; gap: 0.35rem; }
+.du-hp span { width: 1.6rem; height: 0.55rem; border-radius: 2px; border: 1.5px solid var(--basalt); }
+.du-hp span.on { background: var(--basalt); }
+.du-state { font-family: var(--sans); font-size: 0.78rem; color: var(--stone); margin-top: 0.35rem !important; }
+.du-vs { font-style: italic; color: var(--stone); }
+.du-dead .du-name { text-decoration: line-through; color: var(--stone); }

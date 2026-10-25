@@ -189,6 +189,12 @@
   function seekVow(state, rng, d, tier, head, honor, lines) {
     const v = state.vow;
     if (!rng.chance(FIND[tier])) { lines.push(`You asked after ${v.killer} in every harbor, and nobody would say where he was. The oath still stands.`); return; }
+    // found: the reckoning itself is fought out when you are back from the voyage's business (data/law-events.js: vow_duel)
+    if (IS.Battle) {
+      state.vowDuel = { killer: v.killer, fallen: v.fallen, where: d.short };
+      lines.push(`You found ${v.killer} in ${d.short}, drinking in a hall full of his friends. He knows who you are, and why you have come.`);
+      return;
+    }
     const p = clamp(0.4 + (head.attrs.strength - 50) / 150, 0.2, 0.8);
     if (rng.chance(p)) {
       honor(6, `You avenged ${v.fallen}, killing ${v.killer} in ${d.short}`);

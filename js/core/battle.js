@@ -17,6 +17,7 @@
     wall:   { atk: 0.7, def: 0.6, word: 'Hold the shield wall' },
     press:  { atk: 1.5, def: 1.05, word: 'Press the attack' },
     leader: { atk: 1.1, def: 1.05, word: 'Go for their leader' },
+    feint:  { atk: 1.8, def: 1.45, word: 'Feint, then go for the killing blow' },
   };
   const THEIRS = [{ atk: 1.3, def: 1.2 }, { atk: 1.3, def: 1.2 }, { atk: 0.7, def: 0.6 }, { atk: 1.0, def: 1.15 }];
 
@@ -24,8 +25,8 @@
   function ourSide(state, spec) {
     const out = [], head = state.people[state.headId];
     if (!spec.noHead && head && head.deathYear == null && (spec.forceHead || !state.expedition)) out.push({ pid: head.id, name: head.first, str: head.attrs.strength, hp: 3, lead: true });
-    if (!spec.alone) {
-      for (const p of (IS.Raid ? IS.Raid.raiders(state) : []).slice(0, 7)) out.push({ pid: p.id, name: p.first, str: p.attrs.strength || 45, hp: 2 });
+    if (!spec.alone) for (const p of (IS.Raid ? IS.Raid.raiders(state) : []).slice(0, 7)) out.push({ pid: p.id, name: p.first, str: p.attrs.strength || 45, hp: 2 });
+    {
       const rng = spec.rng;
       for (let i = 0; i < (spec.hired || 0); i++) out.push({ pid: null, name: IS.Names.male(rng).first, tag: 'hired', str: 50, hp: 2 });
       for (let i = 0; i < (spec.friends || 0); i++) out.push({ pid: null, name: IS.Names.male(rng).first, tag: spec.friendFarm ? 'of ' + spec.friendFarm : 'friend', str: 48, hp: 2 });
@@ -48,7 +49,7 @@
   /** Build a battle item. spec: { kind, farm, head, force, hired, friends, friendFarm, alone, companion, power, extra } */
   function start(state, rng, spec) {
     const us = ourSide(state, Object.assign({ rng }, spec));
-    const n = clamp(Math.round(spec.force || 6), 2, 10);
+    const n = clamp(Math.round(spec.force || 6), spec.kind === 'duel' ? 1 : 2, 10);
     const them = theirSide(rng, n, spec.head, spec.power, us.map((m) => m.name));
     for (const m of [...us, ...them]) m.max = m.hp;
     return { id: 'battle', wifeId: null, kind: 'event', params: Object.assign({ kind: spec.kind, farm: spec.farm, head: spec.head, round: 1, us, them, log: [], usStart: us.length, themStart: them.length }, spec.extra || {}) };
@@ -77,6 +78,10 @@
     burning: { ours: 1.1, early: 0.6, late: 0.85, themBreak: 0.6, usBreak: 0.3 },
     hunters: { ours: 1.1, early: 0.7, late: 0.8, themBreak: 0.55, usBreak: 0 },
     thing:   { ours: 1, early: 1, late: 1, themBreak: 0.5, usBreak: 0.5 },
+    // single combat: every blow matters, and it ends when one man is down
+    duel:    { ours: 2.2, early: 2.2, late: 2.2, themBreak: 0, usBreak: 0, leaderFalls: 1 },
+    // a hall attacked at night: surprise first, then a proper fight
+    hall:    { ours: 1.15, early: 0.75, late: 1, themBreak: 0.5, usBreak: 0.4 },
   };
 
   /** Fight one round with the chosen stance. Mutates params. Returns { lines, end: null | outcome }. */
@@ -88,7 +93,8 @@
     const fire = params.kind === 'burning' && params.round >= 3;
     const ground = GROUND[params.kind] || GROUND.thing;
     const ours = strike(rng, params.us, params.them, S.atk * ground.ours, theirs.def, stance === 'leader', edge);
-    const hits = strike(rng, params.them, params.us, theirs.atk * (params.round < 3 ? ground.early : ground.late), S.def, rng.chance(0.25), -edge);
+    const guard = params.kind === 'duel' && stance === 'wall' ? 0.7 : 1; // on the cloaks a man who only defends is hard to hit
+    const hits = strike(rng, params.them, params.us, theirs.atk * (params.round < 3 ? ground.early : ground.late), S.def * guard, rng.chance(0.25), -edge);
     const lines = [];
     const say = (h, mine) => {
       if (h.down) lines.push(`${h.a} ${h.dead ? 'killed' : 'cut down'} ${h.t}${h.tLead ? (mine ? ', their leader' : '') : ''}.`);
@@ -103,9 +109,9 @@
     const theirLead = leader(params.them), ourLead = leader(params.us);
     let end = null;
     if (!up(params.us).length || (ourLead && ourLead.hp <= 0 && ourLead.dead)) end = 'lost';
-    else if (broken(params.them, params.themStart, ground.themBreak) || (theirLead && theirLead.hp <= 0 && rng.chance(0.6))) end = 'won';
+    else if ((ground.themBreak && broken(params.them, params.themStart, ground.themBreak)) || !up(params.them).length || (theirLead && theirLead.hp <= 0 && rng.chance(ground.leaderFalls || 0.6))) end = 'won';
     else if (ground.usBreak && broken(params.us, params.usStart, ground.usBreak)) end = 'lost';
-    else if (params.round >= MAX_ROUNDS) end = params.kind === 'burning' || params.kind === 'hunters' ? 'held' : 'draw';
+    else if (params.round >= (params.maxRounds || MAX_ROUNDS)) end = params.kind === 'burning' || params.kind === 'hunters' ? 'held' : 'draw';
     params.round++;
     return { lines, end };
   }

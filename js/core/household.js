@@ -251,6 +251,7 @@
     rep.incidents = rep.incidents || [];
     // the law does not wait for anyone, and an outlaw in the highlands has his own seasons
     if (IS.Law) { IS.Law.tick(state, rng); IS.Law.exileTick(state, rng); }
+    if (state.vowDuel) { state.pending.unshift({ id: 'vow_duel', wifeId: null, kind: 'event', params: state.vowDuel }); state.vowDuel = null; }
     // wintering abroad: nobody is home to answer anything
     if (state.expedition && state.expedition.untilTurn > state.turn + 1) return;
     if (IS.Raid) {
