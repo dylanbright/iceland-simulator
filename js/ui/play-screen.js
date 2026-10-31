@@ -424,16 +424,30 @@
           depBox.replaceChildren(...(plan.raid ? [
             h('h3', null, 'Who runs the farm while you are gone?'),
             h('div', { class: 'choices', role: 'radiogroup', 'aria-label': 'Who runs the farm' }, deps.map((x) => {
-              const input = h('input', { type: 'radio', name: 'raiddep', value: x.id, onchange: () => { plan.raid.deputyId = x.id; update(); } });
+              const input = h('input', { type: 'radio', name: 'raiddep', value: x.id, onchange: () => { plan.raid.deputyId = x.id; plan.raid.crewIds = (plan.raid.crewIds || []).filter((id) => id !== x.id); update(); draw(); } });
               if (plan.raid.deputyId === x.id) input.checked = true;
               return h('label', { class: 'choice' }, input, h('span', { class: 'choice-text' }, h('b', null, x.name), ' ', h('span', null, `${x.role}, ${x.age}, husbandry ${x.husbandry}.`)));
             })),
+            ...(() => {
+              const cands = R.crewable(state, plan.raid.deputyId);
+              const n = (plan.raid.crewIds || []).length;
+              if (!cands.length) return [h('h3', null, 'Who sails with you?'), h('p', { class: 'sec-note' }, `There is no grown man of your house free to sail. The whole crew will be hired men, who take their shares: you keep about ${Math.round(R.lootShare(0) * 100)}% of the haul.`)];
+              return [h('h3', null, 'Who sails with you?'),
+                h('p', { class: 'sec-note crew-note' }, `Hired men take shares of the plunder; men of your own house do not, and they watch your back. With ${n ? n + ' of your own' : 'no men of your own'} you keep about ${Math.round(R.lootShare(n) * 100)}% of a full haul, and your own danger is ${n ? `about ${Math.round((1 - R.guardOf(n)) * 100)}% less` : 'not lessened'}. Each man who sails risks his life, and none of them works the farm while he is gone.`),
+                h('div', { class: 'choices crew' }, cands.map((p) => {
+                  const cb = h('input', { type: 'checkbox', onchange: (e) => { const set = new Set(plan.raid.crewIds || []); if (e.target.checked) set.add(p.id); else set.delete(p.id); plan.raid.crewIds = [...set]; update(); draw(); } });
+                  if ((plan.raid.crewIds || []).includes(p.id)) cb.checked = true;
+                  const risk = Math.round(R.memberDeathEstimate(state, p, plan.raid.dest, true) * 100);
+                  return h('label', { class: 'choice' }, cb, h('span', { class: 'choice-text' }, h('b', null, p.first), ' ', h('span', null, `your ${p.role}, ${E.yearOf(state) - p.birthYear}, Strength ${Math.round(p.attrs.strength)}. About ${risk} in 100 of not coming back.`)));
+                }))];
+            })(),
             R.heirless(state) ? h('p', { class: 'sec-note' }, 'You have no son or brother to inherit. If you do not come back, the line ends.') : null].filter(Boolean) : []));
         };
         raidSec = fold('raid', 'A raid', () => {
           if (!plan.raid) return { text: 'Staying home', warn: oath ? `your oath to avenge ${oath.fallen} waits` : null };
           const dep = deps.find((x) => x.id === plan.raid.deputyId);
-          return { text: `Sail for ${R.DEST[plan.raid.dest].short || R.DEST[plan.raid.dest].name}${dep ? `; ${dep.name.split(' ')[0]} runs the farm` : ''}` };
+          const nc = (plan.raid.crewIds || []).length;
+          return { text: `Sail for ${R.DEST[plan.raid.dest].short || R.DEST[plan.raid.dest].name}${dep ? `; ${dep.name.split(' ')[0]} runs the farm` : ''}${nc ? `; ${nc} of your men sail with you` : '; a hired crew'}` };
         }, [
           h('p', { class: 'sec-note' }, `${teach ? "Sail this summer and bring home plunder, captives and, perhaps, a foreign king's favor. You are not here to work the farm. " : ''}Whether you come back rests on your Strength (${Math.round(head.attrs.strength)}). ${state.ship ? 'Crew and outfitting' : 'Ship, crew and outfitting'}: ${fmt(total)} ells, paid before anything else.`),
           destBox, depBox,

@@ -82,6 +82,14 @@
     const age = E.yearOf(state) - p.birthYear;
     return clamp(1.6 - p.attrs.strength / 62, 0.45, 1.5) * (1 + Math.max(0, age - 40) * 0.02);
   };
+  /** Men of the house who could sail with you on your own ship (the deputy stays home). */
+  function crewable(state, deputyId) {
+    return raiders(state).filter((p) => p.id !== deputyId);
+  }
+  /** What your own men are worth on the ship: hired crew take shares of the plunder, your own men do not,
+   *  and men of your own house guard your back. */
+  const lootShare = (n) => 0.75 + 0.1 * Math.min(5, n);
+  const guardOf = (n) => Math.max(0.6, 1 - 0.06 * Math.min(5, n));
   /** Men of the house (not the head, never women) who might ask to go. */
   function raiders(state) {
     const hh = state.household, year = E.yearOf(state);
@@ -169,10 +177,12 @@
     E.pay(state.farm, total);
     const d = DEST[spec.dest];
     if (!state.ship) state.ship = { built: E.yearOf(state) };
-    state.expedition = { dest: d.id, deputyId: spec.deputyId, sponsor: true, untilTurn: state.turn + (d.winter ? 2 : 1) };
+    const crewIds = (spec.crewIds || []).filter((id) => crewable(state, spec.deputyId).some((m) => m.id === id));
+    state.expedition = { dest: d.id, deputyId: spec.deputyId, sponsor: true, crewIds, untilTurn: state.turn + (d.winter ? 2 : 1) };
     const dep = state.people[spec.deputyId];
     rep.raid.push(`You fitted out a ship for ${d.name} (${fmt(total)} ells) and left ${dep.first} in charge of the farm${d.winter ? ', and you will winter abroad' : ''}.`);
-    return { dest: d.id, sponsor: true, deputyId: spec.deputyId };
+    if (crewIds.length) rep.raid.push(`${crewIds.map((id) => state.people[id].first).join(', ')} sailed with you; the rest of the crew were hired men.`);
+    return { dest: d.id, sponsor: true, deputyId: spec.deputyId, crewIds };
   }
 
   function addThralls(state, rng, n) {
@@ -228,7 +238,8 @@
     const tier = rollTier(rng, dist);
     const favored = !!(state.favors && state.favors[d.id]);
     const sf = strengthFactor(state);
-    const pDie = clamp(d.risk * sf * DEATH_MULT[tier] * (sponsor ? 0.9 : 1) * (favored ? 0.85 : 1), 0, 0.6);
+    const crew = (spec.crewIds || []).map((id) => state.people[id]).filter((p) => p && p.deathYear == null);
+    const pDie = clamp(d.risk * sf * DEATH_MULT[tier] * (sponsor ? 0.9 : 1) * (favored ? 0.85 : 1) * (sponsor ? guardOf(crew.length) : 1), 0, 0.6);
     const died = rng.chance(pDie);
 
     state.raidLog = state.raidLog || {};
@@ -239,7 +250,7 @@
     const guard = Math.max(0.4, 1 - 0.15 * prior);
     const trait = head.traits.includes('fearless') ? 1.1 : head.traits.includes('cautious') ? 0.92 : 1;
     const base = d.loot * (sponsor ? 1 : 0.3) * guard * trait * (favored ? 1.2 : 1);
-    const loot = Math.round(base * TIER_MULT[tier] * rng.float(0.8, 1.25));
+    const loot = Math.round(base * TIER_MULT[tier] * rng.float(0.8, 1.25) * (sponsor ? lootShare(crew.length) : 1));
 
     const where = d.short;
     const glow = clamp((95 - head.attrs.honor) / 60, 0.3, 1.3);
@@ -262,6 +273,31 @@
       const w = rng.int(3, 12);
       head.peak.strength = Math.max(8, head.peak.strength - w); head.attrs.strength = Math.max(8, head.attrs.strength - w);
       lines.push(`You took a bad wound in the fighting and lost some of your strength (−${w}).`);
+    }
+
+    // your own men: each one shares the risks, and comes home or does not
+    const fates = [];
+    for (const m of crew) {
+      const pm = clamp(d.risk * memberFactor(state, m) * DEATH_MULT[tier] * 0.9 * (favored ? 0.85 : 1), 0, 0.6);
+      if (rng.chance(pm)) {
+        m.deathYear = yr; m.deathAge = yr - m.birthYear; m.deathCause = 'raid'; m.deathText = `fell on a raid in ${where}`;
+        IS.Turn.removeFromHousehold(state, m.id);
+        if (IS.Saga) IS.Saga.death(state, m, m.deathText, true);
+        const mother = m.motherId && state.people[m.motherId];
+        if (mother) { mother.lastLossTurn = state.turn; if (state.household.wives.includes(mother.id) && mother.attrs) mother.attrs.happiness = clamp(mother.attrs.happiness - 8, 0, 100); }
+        let killer = '';
+        if (!state.vow && ['son', 'brother'].includes(m.role) && rng.chance(VOW_CHANCE)) {
+          killer = IS.Names.male(rng).first;
+          state.vow = { status: 'offered', dest: d.id, killer, fallen: m.first, fallenId: m.id, rel: m.role, member: true, turn: state.turn };
+        }
+        fates.push({ name: m.first, role: m.role, fate: 'killed', killer });
+        lines.push(`${m.first} fell in ${where}.${killer ? ` The crew say ${killer}, a man of ${where}, struck the blow.` : ''}`);
+      } else if (tier !== 'poor' && rng.chance(clamp(0.18 * memberFactor(state, m), 0.04, 0.45))) {
+        const w = rng.int(3, 10);
+        m.peak.strength = Math.max(8, m.peak.strength - w); m.attrs.strength = Math.max(8, m.attrs.strength - w);
+        fates.push({ name: m.first, role: m.role, fate: 'wounded', w });
+        lines.push(`${m.first} was wounded (strength −${w}).`);
+      } else fates.push({ name: m.first, role: m.role, fate: 'well' });
     }
 
     // an oath of vengeance sworn for the man who fell here
@@ -322,8 +358,16 @@
       state.farm.hay = Math.max(0, Math.round((state.farm.hay - lost) * 10) / 10);
       if (dep) lines.push(`${dep.first} kept the farm while you were gone${lost > 0.4 ? `, but about ${lost} tons of hay were lost in the haymaking` : ''}.`);
     }
+    // the voyage, kept for its own screen (data/voyage-events.js)
+    if (sponsor) {
+      const capt = lines.find((l) => /captive/.test(l));
+      state.voyageReport = { dest: d.id, where, name: d.name, tier, loot: keep, share: Math.round(lootShare(crew.length) * 100), crew: fates, died, headName: head.first,
+        wound: lines.some((l) => /You took a bad wound/.test(l)), captives: capt ? (capt.match(/^(\d+)/) ? +capt.match(/^(\d+)/)[1] : 1) : 0,
+        favor: lines.some((l) => /now in his favor/.test(l)), king: d.king, shipLost: lines.some((l) => l === 'The ship was lost.'), winter: d.winter && !died,
+        vowFound: !!state.vowDuel, story, honor: died ? 0 : Math.round(hon * 10) / 10 };
+    }
     return { lines, died, tier, loot: keep };
   }
 
-  IS.Raid = { DEST, ORDER, SHIP_COST, SHARE_FEE, outfit, isAway, deputies, headFit, canRaid, heirless, cost, stewardEff, deathEstimate, strengthFactor, begin, run, raiders, memberDeathEstimate, runMember, offerVow };
+  IS.Raid = { crewable, lootShare, guardOf, DEST, ORDER, SHIP_COST, SHARE_FEE, outfit, isAway, deputies, headFit, canRaid, heirless, cost, stewardEff, deathEstimate, strengthFactor, begin, run, raiders, memberDeathEstimate, runMember, offerVow };
 })();

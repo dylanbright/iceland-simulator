@@ -255,6 +255,7 @@
     // the law does not wait for anyone, and an outlaw in the highlands has his own seasons
     if (IS.Law) { IS.Law.tick(state, rng); IS.Law.exileTick(state, rng); }
     if (state.vowDuel) { state.pending.unshift({ id: 'vow_duel', wifeId: null, kind: 'event', params: state.vowDuel }); state.vowDuel = null; }
+    if (state.voyageReport) { state.pending.unshift({ id: 'voyage_report', wifeId: null, kind: 'event', params: state.voyageReport }); state.voyageReport = null; }
     // wintering abroad: nobody is home to answer anything
     if (state.expedition && state.expedition.untilTurn > state.turn + 1) return;
     if (IS.Raid) {
@@ -284,7 +285,7 @@
     if (IS.Saga && !state.ambition && state.turn >= (state.ambitionAsk || 0) && !state.pending.some((p) => p.id === 'ambition_new')) state.pending.push({ id: 'ambition_new', wifeId: null, kind: 'event', params: { done: '' } });
     rollEvents(state, rng, rep.season);
     if (IS.Stable) IS.Stable.sync(state, rng);
-    drainNews(state, 0);
+    drainNews(state, state.pending[0] && state.pending[0].id === 'voyage_report' ? 1 : 0);
   }
 
   /** Weddings, funerals and new women in the house come first, before anything that assumes you know of them. */

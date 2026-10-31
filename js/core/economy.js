@@ -130,8 +130,9 @@
   function members(state) {
     const hh = state.household;
     const away = state.expedition && state.turn < state.expedition.untilTurn;
+    const crew = away && state.expedition.crewIds ? state.expedition.crewIds : [];
     return [away ? null : state.headId, ...hh.wives, ...(hh.concubines || []), ...hh.children, ...hh.kin, ...hh.servants, ...hh.thralls]
-      .map((id) => id && state.people[id]).filter((p) => p && p.deathYear == null);
+      .map((id) => id && !crew.includes(id) && state.people[id]).filter((p) => p && p.deathYear == null);
   }
 
   function workPower(p, age, T) {
@@ -208,7 +209,7 @@
       treatment: ['harsh', 'fair', 'kind'].includes(p.treatment) ? p.treatment : 'fair',
       seekWife: !!p.seekWife && canSeekWife(state) && !(p.raid && p.raid.dest),
       concubine: !!p.concubine && !!IS.Marriage && IS.Marriage.canTakeConcubine(state),
-      raid: S === 'summer' && p.raid && p.raid.dest && IS.Raid && IS.Raid.DEST[p.raid.dest] ? { dest: p.raid.dest, deputyId: p.raid.deputyId } : null,
+      raid: S === 'summer' && p.raid && p.raid.dest && IS.Raid && IS.Raid.DEST[p.raid.dest] ? { dest: p.raid.dest, deputyId: p.raid.deputyId, crewIds: IS.Raid.crewable(state, p.raid.deputyId).filter((m) => (p.raid.crewIds || []).includes(m.id)).map((m) => m.id) } : null,
     };
   }
 
@@ -453,7 +454,7 @@
       // preview the summer with you away and the ship paid for
       const f = clone(state.farm);
       pay(f, IS.Raid.cost(state));
-      st = Object.assign({}, state, { farm: f, expedition: { dest: plan.raid.dest, deputyId: plan.raid.deputyId, untilTurn: state.turn + 1 } });
+      st = Object.assign({}, state, { farm: f, expedition: { dest: plan.raid.dest, deputyId: plan.raid.deputyId, crewIds: plan.raid.crewIds || [], untilTurn: state.turn + 1 } });
     }
     const res = season(st, plan, env);
     const rep = res.rep;
